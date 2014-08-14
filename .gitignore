@@ -33,6 +33,9 @@ modules.builtin
 *.lzo
 *.patch
 *.gcno
+modules.builtin
+Module.symvers
+*.dwo
 
 #
 # Top-level generic files
