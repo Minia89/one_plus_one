@@ -1634,7 +1634,6 @@ int tty_release(struct inode *inode, struct file *filp)
 	int	idx;
 	char	buf[64];
 	long	timeout = 0;
-	int	once = 1;
 
 	if (tty_paranoia_check(tty, inode, __func__))
 		return 0;
