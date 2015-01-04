@@ -19,7 +19,6 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/version.h>
-#include <linux/slab.h>
 
 enum { ASYNC, SYNC };
 
@@ -381,4 +380,3 @@ MODULE_AUTHOR("Miguel Boton");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Simple IO scheduler");
 MODULE_VERSION("0.2");
-
