@@ -27,7 +27,7 @@
 unsigned int poll_interval = 750;
 module_param(poll_interval, int, 0644);
 
-unsigned int temp_threshold = 75;
+unsigned int temp_threshold = 65;
 module_param(temp_threshold, int, 0644);
 
 static struct thermal_info {
