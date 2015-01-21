@@ -4,3 +4,10 @@ config INTELLI_PLUG
         help
           Generic Intelli-plug cpu hotplug driver for ARM SOCs
 
+config BRICKED_HOTPLUG
+	bool "Enable kernel based mpdecision"
+	default n
+	help
+	 This enables kernel based multi core control.
+	 (up/down hotplug based on load)
+
