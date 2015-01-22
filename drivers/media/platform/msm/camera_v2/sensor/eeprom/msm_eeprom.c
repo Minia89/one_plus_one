@@ -349,7 +349,7 @@ static int msm_eeprom_alloc_memory_map(struct msm_eeprom_ctrl_t *e_ctrl,
 		rc = of_property_read_u32_array(of, property,
 			(uint32_t *) &eb->eeprom_map[i].pageen, count);
 		if (rc < 0)
-			pr_err("%s: pageen not needed\n", __func__);
+			CDBG("%s: pageen not needed\n", __func__);
 
 		snprintf(property, 12, "qcom,poll%d", i);
 		rc = of_property_read_u32_array(of, property,
