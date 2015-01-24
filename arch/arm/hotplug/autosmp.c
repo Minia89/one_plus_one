@@ -21,12 +21,12 @@
  */
 
 #include <linux/moduleparam.h>
-#include <linux/earlysuspend.h>
 #include <linux/cpufreq.h>
 #include <linux/workqueue.h>
 #include <linux/cpu.h>
 #include <linux/cpumask.h>
 #include <linux/hrtimer.h>
+#include <linux/powersuspend.h>
 
 #define DEBUG 0
 
@@ -110,7 +110,8 @@ static void __cpuinit asmp_work_fn(struct work_struct *work) {
 			cpu_up(cpu);
 			cycle = 0;
 #if DEBUG
-			pr_info(ASMP_TAG"CPU[%d] on\n", cpu);
+			pr_info(ASMP_TAG"CPU [%d] On  | Mask [%d%d%d%d]\n",
+				cpu, cpu_online(0), cpu_online(1), cpu_online(2), cpu_online(3));
 #endif
 		}
 	/* unplug slowest core if all online cores are under down_rate limit */
@@ -120,7 +121,8 @@ static void __cpuinit asmp_work_fn(struct work_struct *work) {
  			cpu_down(slow_cpu);
 			cycle = 0;
 #if DEBUG
-			pr_info(ASMP_TAG"CPU[%d] off\n", slow_cpu);
+			pr_info(ASMP_TAG"CPU [%d] Off | Mask [%d%d%d%d]\n",
+				slow_cpu, cpu_online(0), cpu_online(1), cpu_online(2), cpu_online(3));
 			per_cpu(asmp_cpudata, cpu).times_hotplugged += 1;
 #endif
 		}
@@ -129,7 +131,7 @@ static void __cpuinit asmp_work_fn(struct work_struct *work) {
 	queue_delayed_work(asmp_workq, &asmp_work, delay_jif);
 }
 
-static void asmp_early_suspend(struct early_suspend *h) {
+static void asmp_suspend(struct power_suspend *handler) {
 	unsigned int cpu;
 
 	/* unplug online cpu cores */
@@ -142,10 +144,10 @@ static void asmp_early_suspend(struct early_suspend *h) {
 	if (enabled)
 		cancel_delayed_work_sync(&asmp_work);
 
-	pr_info(ASMP_TAG"suspended\n");
+	pr_info(ASMP_TAG"Screen -> Off. Suspended.\n");
 }
 
-static void __cpuinit asmp_late_resume(struct early_suspend *h) {
+static void __cpuinit asmp_resume(struct power_suspend *handler) {
 	unsigned int cpu;
 
 	/* hotplug offline cpu cores */
@@ -161,13 +163,12 @@ static void __cpuinit asmp_late_resume(struct early_suspend *h) {
 		queue_delayed_work(asmp_workq, &asmp_work,
 				msecs_to_jiffies(asmp_param.delay));
 
-	pr_info(ASMP_TAG"resumed\n");
+	pr_info(ASMP_TAG"Screen -> On. Resumed.\n");
 }
 
-static struct early_suspend __refdata asmp_early_suspend_handler = {
-	.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN,
-	.suspend = asmp_early_suspend,
-	.resume = asmp_late_resume,
+static struct power_suspend __refdata asmp_power_suspend_handler = {
+	.suspend = asmp_suspend,
+	.resume = asmp_resume,
 };
 
 static int __cpuinit set_enabled(const char *val, const struct kernel_param *kp) {
@@ -178,16 +179,17 @@ static int __cpuinit set_enabled(const char *val, const struct kernel_param *kp)
 	if (enabled) {
 		queue_delayed_work(asmp_workq, &asmp_work,
 				msecs_to_jiffies(asmp_param.delay));
-		pr_info(ASMP_TAG"enabled\n");
+		pr_info(ASMP_TAG"Enabled.\n");
 	} else {
 		cancel_delayed_work_sync(&asmp_work);
+		unregister_power_suspend(&asmp_power_suspend_handler);
 		for_each_present_cpu(cpu) {
 			if (num_online_cpus() >= nr_cpu_ids)
 				break;
 			if (!cpu_online(cpu))
 				cpu_up(cpu);
 		}
-		pr_info(ASMP_TAG"disabled\n");
+		pr_info(ASMP_TAG"Disabled.\n");
 	}
 	return ret;
 }
@@ -306,22 +308,22 @@ static int __init asmp_init(void) {
 		queue_delayed_work(asmp_workq, &asmp_work,
 				   msecs_to_jiffies(ASMP_STARTDELAY));
 
-	register_early_suspend(&asmp_early_suspend_handler);
+	register_power_suspend(&asmp_power_suspend_handler);
 
 	asmp_kobject = kobject_create_and_add("autosmp", kernel_kobj);
 	if (asmp_kobject) {
 		rc = sysfs_create_group(asmp_kobject, &asmp_attr_group);
 		if (rc)
-			pr_warn(ASMP_TAG"ERROR, create sysfs group");
+			pr_warn(ASMP_TAG"sysfs: ERROR, create sysfs group.");
 #if DEBUG
 		rc = sysfs_create_group(asmp_kobject, &asmp_stats_attr_group);
 		if (rc)
-			pr_warn(ASMP_TAG"ERROR, create sysfs stats group");
+			pr_warn(ASMP_TAG"sysfs: ERROR, create sysfs stats group.");
 #endif
 	} else
-		pr_warn(ASMP_TAG"ERROR, create sysfs kobj");
+		pr_warn(ASMP_TAG"sysfs: ERROR, create sysfs kobj");
 
-	pr_info(ASMP_TAG"initialized\n");
+	pr_info(ASMP_TAG"Init complete.\n");
 	return 0;
 }
 late_initcall(asmp_init);
