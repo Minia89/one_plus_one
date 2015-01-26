@@ -4726,11 +4726,9 @@ static int  _qcrypto_resume(struct platform_device *pdev)
 		pengine->bw_state = BUS_NO_BANDWIDTH;
 		pengine->active_seq++;
 		pengine->check_flag = false;
-		if (cp->req_queue.qlen || pengine->req_queue.qlen) {
-			if (pengine->high_bw_req == false) {
-				qcrypto_ce_bw_allocate_req(pengine);
-				pengine->high_bw_req = true;
-			}
+		if (pengine->high_bw_req == false) {
+			qcrypto_ce_bw_allocate_req(pengine);
+			pengine->high_bw_req = true;
 		}
 	}
 	spin_unlock_irqrestore(&cp->lock, flags);
