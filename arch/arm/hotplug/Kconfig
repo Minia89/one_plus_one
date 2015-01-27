@@ -25,3 +25,9 @@ config MSM_SLEEPER
 	help
 	  CPU hotplug driver
 
+config MAKO_HOTPLUG
+    bool "mako hotplug driver"
+    default n
+    help
+      easy HOTPLUG driver made by franciscofranco
+
