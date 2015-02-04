@@ -193,7 +193,8 @@ SUBARCH := $(shell uname -m | sed -e s/i.86/i386/ -e s/sun4u/sparc64/ \
 # Note: Some architectures assign CROSS_COMPILE in their arch/*/Makefile
 export KBUILD_BUILDHOST := $(SUBARCH)
 ARCH           ?= arm
-CROSS_COMPILE  ?= ../arm-eabi-4.9/bin/arm-eabi-
+CROSS_COMPILE  ?= $(CCACHE) ../arm-eabi-4.9/bin/arm-eabi-
+CCACHE 	       ?= ccache
 
 # Architecture as present in compile.h
 UTS_MACHINE 	:= $(ARCH)
@@ -243,7 +244,7 @@ CONFIG_SHELL := $(shell if [ -x "$$BASH" ]; then echo $$BASH; \
 	  else if [ -x /bin/bash ]; then echo /bin/bash; \
 	  else echo sh; fi ; fi)
 
-HOSTCC       = ccache gcc
+HOSTCC       = $(CCACHE) gcc
 HOSTCXX      = g++
 HOSTCFLAGS   = -Wall -Wmissing-prototypes -Wstrict-prototypes -O3 -fomit-frame-pointer -pipe -DNDEBUG -fgcse-las -fgraphite -fgraphite-identity -floop-flatten -floop-parallelize-all -ftree-loop-linear -floop-interchange -floop-strip-mine -floop-block
 HOSTCXXFLAGS = -pipe -DNDEBUG -O3 -fgcse-las -fgraphite -fgraphite-identity -floop-flatten -floop-parallelize-all -ftree-loop-linear -floop-interchange -floop-strip-mine -floop-block
@@ -330,7 +331,7 @@ include $(srctree)/scripts/Kbuild.include
 
 AS		= $(CROSS_COMPILE)as
 LD		= $(CROSS_COMPILE)ld
-CC		= $(CROSS_COMPILE)gcc
+CC 		= $(CCACHE) $(CROSS_COMPILE)gcc
 CPP		= $(CC) -E
 AR		= $(CROSS_COMPILE)ar
 NM		= $(CROSS_COMPILE)nm
