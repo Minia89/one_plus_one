@@ -27,9 +27,21 @@
 #include <linux/delay.h>
 #include <linux/input.h>
 #include <linux/jiffies.h>
-
+#ifdef CONFIG_LCD_NOTIFY
+#include <linux/lcd_notify.h>
+#endif
 #ifdef CONFIG_POWERSUSPEND
 #include <linux/powersuspend.h>
+#endif
+
+#if defined(CONFIG_LCD_NOTIFY) && \
+	!defined(CONFIG_POWERSUSPEND)
+#define USE_LCD_NOTIFY
+#else
+#ifdef CONFIG_LCD_NOTIFY
+/* if you wish to use LCD NOTIFY, change undef to define */
+#undef USE_LCD_NOTIFY
+#endif
 #endif
 
 #define MAKO_HOTPLUG "mako_hotplug"
@@ -389,7 +401,30 @@ static void __ref mako_hotplug_resume(struct work_struct *work)
 	pr_info("%s: resume\n", MAKO_HOTPLUG);
 }
 
-#ifdef CONFIG_POWERSUSPEND
+#ifdef USE_LCD_NOTIFY
+static int lcd_notifier_callback(struct notifier_block *this,
+				unsigned long event, void *data)
+
+static int lcd_notifier_callback(struct notifier_block *this,
+	unsigned long event, void *data)
+{
+	struct hotplug_tunables *t = &tunables;
+
+	if (!t->enabled)
+		return NOTIFY_OK;
+
+	if (event == LCD_EVENT_ON_START) {
+		if (!stats.booted)
+			stats.booted = true;
+		else
+			queue_work_on(0, wq, &resume);
+	} else if (event == LCD_EVENT_OFF_START)
+		queue_work_on(0, wq, &suspend);
+
+	return NOTIFY_OK;
+}
+
+#elif defined (CONFIG_POWERSUSPEND)
 static void __mako_hotplug_suspend(struct power_suspend *handler)
 {
 	queue_work_on(0, wq, &suspend);
@@ -695,6 +730,14 @@ static int __devinit mako_hotplug_probe(struct platform_device *pdev)
 	t->screen_off_max = DEFAULT_MAX_FREQ_CAP;
 	t->min_cores_online = DEFAULT_MIN_CORES_ONLINE;
 
+#ifdef USE_LCD_NOTIFY
+	stats.notif.notifier_call = lcd_notifier_callback;
+
+	if (lcd_register_client(&stats.notif)) {
+		ret = -EINVAL;
+		goto err;
+	}
+#endif
 	ret = misc_register(&mako_hotplug_control_device);
 	if (ret) {
 		ret = -EINVAL;
