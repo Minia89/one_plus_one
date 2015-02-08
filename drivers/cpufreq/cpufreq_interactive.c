@@ -175,8 +175,7 @@ static void cpufreq_interactive_timer_resched(unsigned long cpu)
 
 	if (pcpu->timer_slack_val >= 0 &&
 	    (pcpu->target_freq > pcpu->policy->min ||
-		(pcpu->target_freq == pcpu->policy->min &&
-		 now < boostpulse_endtime))) {
+		(pcpu->target_freq == pcpu->policy->min))) {
 		expires += usecs_to_jiffies(pcpu->timer_slack_val);
 		del_timer(&pcpu->cpu_slack_timer);
 		pcpu->cpu_slack_timer.expires = expires;
@@ -202,8 +201,7 @@ static void cpufreq_interactive_timer_start(int cpu)
 	add_timer_on(&pcpu->cpu_timer, cpu);
 	if (pcpu->timer_slack_val >= 0 &&
 	    (pcpu->target_freq > pcpu->policy->min ||
-		(pcpu->target_freq == pcpu->policy->min &&
-		 now < boostpulse_endtime))) {
+		(pcpu->target_freq == pcpu->policy->min))) {
 		expires += usecs_to_jiffies(pcpu->timer_slack_val);
 		pcpu->cpu_slack_timer.expires = expires;
 		add_timer_on(&pcpu->cpu_slack_timer, cpu);
@@ -568,8 +566,7 @@ static void cpufreq_interactive_idle_start(void)
 	pending = timer_pending(&pcpu->cpu_timer);
 
 	if (pcpu->target_freq > pcpu->policy->min ||
-	    (pcpu->target_freq == pcpu->policy->min &&
-			now < boostpulse_endtime)) {
+	    (pcpu->target_freq == pcpu->policy->min)) {
 		/*
 		 * Entering idle while not at lowest speed.  On some
 		 * platforms this can hold the other CPU(s) at that speed
