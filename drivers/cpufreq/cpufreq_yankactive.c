@@ -30,10 +30,7 @@
 #include <linux/slab.h>
 #include <asm/cputime.h>
 
-#define DEFAULT_HISPEED_FREQ		1190400
-#define DEFAULT_SYNC_FREQ		0
-#define DEFAULT_UP_THRESHOLD_FREQ	0
-#define DEFAULT_UP_THRESHOLD_LOAD	0
+#define DEFAULT_HISPEED_FREQ	1728000
 
 static int active_count;
 
@@ -54,7 +51,7 @@ struct cpufreq_yankactive_cpuinfo {
 	int timer_slack_val;
 	unsigned int min_sample_time;
 	u64 floor_validate_time;
-	u64 hispeed_validate_time;
+	u64 hispeed_validate_time; /* cluster hispeed_validate_time */
 	struct rw_semaphore enable_sem;
 	int governor_enabled;
 	int prev_load;
@@ -72,7 +69,7 @@ static spinlock_t speedchange_cpumask_lock;
 static struct mutex gov_lock;
 
 /* Hi speed to bump to from lo speed when load burst (default max) */
-static unsigned int hispeed_freq = DEFAULT_HISPEED_FREQ;
+static unsigned int hispeed_freq = 1574400;
 
 /* Go to hi speed when CPU load at or above this value. */
 #define DEFAULT_GO_HISPEED_LOAD 99
@@ -97,7 +94,7 @@ static unsigned long freq_calc_thresh;
 /*
  * The minimum amount of time to spend at a frequency before we can ramp down.
  */
-#define DEFAULT_MIN_SAMPLE_TIME (80 * USEC_PER_MSEC)
+#define DEFAULT_MIN_SAMPLE_TIME (20 * USEC_PER_MSEC)
 static unsigned int default_min_sample_time[] = {DEFAULT_MIN_SAMPLE_TIME};
 static spinlock_t min_sample_time_lock;
 static unsigned int *min_sample_times = default_min_sample_time;
@@ -106,7 +103,7 @@ static int nmin_sample_times = ARRAY_SIZE(default_min_sample_time);
 /*
  * The sample rate of the timer used to increase frequency
  */
-#define DEFAULT_TIMER_RATE (20 * USEC_PER_MSEC)
+#define DEFAULT_TIMER_RATE (20000)
 static unsigned int default_timer_rate[] = { DEFAULT_TIMER_RATE };
 static spinlock_t timer_rate_lock;
 static unsigned int *timer_rates = default_timer_rate;
@@ -137,7 +134,7 @@ static u64 boostpulse_endtime;
  * Max additional time to wait in idle, beyond timer_rate, at speeds above
  * minimum before wakeup to reduce speed, or -1 if unnecessary.
  */
-#define DEFAULT_TIMER_SLACK (4 * DEFAULT_TIMER_RATE)
+#define DEFAULT_TIMER_SLACK (40000)
 static int default_timer_slack_val[] = { DEFAULT_TIMER_SLACK };
 static spinlock_t timer_slack_lock;
 static int *timer_slack_vals = default_timer_slack_val;
@@ -145,15 +142,18 @@ static int ntimer_slack_vals = ARRAY_SIZE(default_timer_slack_val);
 
 static bool io_is_busy = 0;
 
+/* Improves frequency selection for more energy */
+static bool powersave_bias;
+
 /*
  * If the max load among other CPUs is higher than up_threshold_any_cpu_load
  * or if the highest frequency among the other CPUs is higher than
  * up_threshold_any_cpu_freq then do not let the frequency to drop below
  * sync_freq
  */
-static unsigned int up_threshold_any_cpu_load = DEFAULT_UP_THRESHOLD_LOAD;
-static unsigned int sync_freq = DEFAULT_SYNC_FREQ;
-static unsigned int up_threshold_any_cpu_freq = DEFAULT_UP_THRESHOLD_FREQ;
+static unsigned int up_threshold_any_cpu_load = 80;
+static unsigned int sync_freq = 1574400;
+static unsigned int up_threshold_any_cpu_freq = 1574400;
 
 static void cpufreq_yankactive_timer_resched(
 	struct cpufreq_yankactive_cpuinfo *pcpu)
@@ -559,7 +559,8 @@ static void cpufreq_yankactive_timer(unsigned long data)
 		pcpu->floor_validate_time = now;
 	}
 
-	if (pcpu->target_freq == new_freq) {
+	if (pcpu->target_freq == new_freq &&
+			pcpu->target_freq <= pcpu->policy->cur) {
 		spin_unlock_irqrestore(&pcpu->target_freq_lock, flags);
 		goto rearm_if_notmax;
 	}
@@ -627,7 +628,6 @@ static void cpufreq_yankactive_idle_start(void)
 							MIN_BUSY_TIME) {
 				pcpu->floor_validate_time = now;
 			}
-
 		}
 	}
 
@@ -706,11 +706,19 @@ static int cpufreq_yankactive_speedchange_task(void *data)
 					max_freq = pjcpu->target_freq;
 			}
 
-			if (max_freq != pcpu->policy->cur)
-				__cpufreq_driver_target(pcpu->policy,
-							max_freq,
-							CPUFREQ_RELATION_H);
-				up_read(&pcpu->enable_sem);
+			if (max_freq != pcpu->policy->cur) {
+				if (!powersave_bias)
+					__cpufreq_driver_target(pcpu->policy,
+								max_freq,
+								CPUFREQ_RELATION_H);
+				else
+					__cpufreq_driver_target(pcpu->policy,
+								max_freq,
+								CPUFREQ_RELATION_C);
+
+			}
+
+			up_read(&pcpu->enable_sem);
 		}
 	}
 
@@ -728,7 +736,6 @@ static void cpufreq_yankactive_boost(void)
 
 	for_each_online_cpu(i) {
 		pcpu = &per_cpu(cpuinfo, i);
-
 		spin_lock_irqsave(&pcpu->target_freq_lock, flags[1]);
 		if (pcpu->target_freq < hispeed_freq) {
 			pcpu->target_freq = hispeed_freq;
@@ -1264,6 +1271,29 @@ static ssize_t store_sync_freq(struct kobject *kobj,
 static struct global_attr sync_freq_attr = __ATTR(sync_freq, 0644,
 		show_sync_freq, store_sync_freq);
 
+static ssize_t show_powersave_bias(struct kobject *kobj,
+				     struct attribute *attr, char *buf)
+{
+	return sprintf(buf, "%u\n", powersave_bias);
+}
+
+static ssize_t store_powersave_bias(struct kobject *kobj,
+			struct attribute *attr, const char *buf, size_t count)
+{
+	int ret;
+	unsigned long val;
+
+	ret = strict_strtoul(buf, 0, &val);
+	if (ret < 0)
+		return ret;
+	powersave_bias = val;
+	return count;
+}
+
+static struct global_attr powersave_bias_attr = __ATTR(powersave_bias, 0644,
+		show_powersave_bias, store_powersave_bias);
+
+
 static ssize_t show_up_threshold_any_cpu_load(struct kobject *kobj,
 			struct attribute *attr, char *buf)
 {
@@ -1329,6 +1359,7 @@ static struct attribute *yankactive_attributes[] = {
 	&sync_freq_attr.attr,
 	&up_threshold_any_cpu_load_attr.attr,
 	&up_threshold_any_cpu_freq_attr.attr,
+	&powersave_bias_attr.attr,
 	NULL,
 };
 
