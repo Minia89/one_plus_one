@@ -31,9 +31,9 @@
 #define HOTPLUG_ENABLED			0
 #define MSM_MPDEC_STARTDELAY		20000
 #define MSM_MPDEC_DELAY			130
-#define DEFAULT_MIN_CPUS_ONLINE		2
+#define DEFAULT_MIN_CPUS_ONLINE		1
 #define DEFAULT_MAX_CPUS_ONLINE		NR_CPUS
-#define DEFAULT_MAX_CPUS_ONLINE_SUSP	2
+#define DEFAULT_MAX_CPUS_ONLINE_SUSP	1
 #define DEFAULT_SUSPEND_DEFER_TIME	10
 
 #define MSM_MPDEC_IDLE_FREQ		422400
@@ -80,7 +80,7 @@ static struct cpu_hotplug {
 	.bricked_enabled = HOTPLUG_ENABLED,
 };
 
-static unsigned int NwNs_Threshold[8] = {12, 0, 20, 7, 25, 10, 0, 18};
+static unsigned int NwNs_Threshold[8] = {12, 0, 25, 7, 30, 10, 0, 18};
 static unsigned int TwTs_Threshold[8] = {140, 0, 140, 190, 140, 190, 0, 190};
 
 extern unsigned int get_rq_info(void);
@@ -139,10 +139,10 @@ static int mp_decision(void) {
 	int nr_cpu_online;
 	int index;
 	unsigned int rq_depth;
-	static cputime64_t total_time = 0;
-	static cputime64_t last_time;
-	cputime64_t current_time;
-	cputime64_t this_time = 0;
+	static u64 total_time = 0;
+	static u64 last_time;
+	u64 current_time;
+	u64 this_time = 0;
 
 	if (!hotplug.bricked_enabled)
 		return MSM_MPDEC_DISABLED;
@@ -233,7 +233,7 @@ static void __ref bricked_hotplug_work(struct work_struct *work) {
 
 out:
 	if (hotplug.bricked_enabled)
-		queue_delayed_work(hotplug_wq, &hotplug_work,
+		mod_delayed_work(hotplug_wq, &hotplug_work,
 					msecs_to_jiffies(hotplug.delay));
 	return;
 }
@@ -302,7 +302,7 @@ static void __ref bricked_hotplug_resume(struct work_struct *work)
 
 	/* Resume hotplug workqueue if required */
 	if (required_reschedule) {
-		queue_delayed_work(hotplug_wq, &hotplug_work, 0);
+		mod_delayed_work(hotplug_wq, &hotplug_work, 0);
 		pr_info(MPDEC_TAG": Screen -> on. Activated bricked hotplug. | Mask=[%d%d%d%d]\n",
 				cpu_online(0), cpu_online(1), cpu_online(2), cpu_online(3));
 	}
@@ -325,7 +325,7 @@ static int lcd_notifier_callback(struct notifier_block *this,
 		break;
 	case LCD_EVENT_OFF_END:
 		INIT_DELAYED_WORK(&suspend_work, bricked_hotplug_suspend);
-		queue_delayed_work_on(0, susp_wq, &suspend_work, 
+		mod_delayed_work_on(0, susp_wq, &suspend_work, 
 				 msecs_to_jiffies(hotplug.suspend_defer_time * 1000)); 
 		break;
 	default:
@@ -373,7 +373,7 @@ static int bricked_hotplug_start(void)
 	INIT_WORK(&resume_work, bricked_hotplug_resume);
 
 	if (hotplug.bricked_enabled)
-		queue_delayed_work(hotplug_wq, &hotplug_work,
+		mod_delayed_work(hotplug_wq, &hotplug_work,
 					msecs_to_jiffies(hotplug.startdelay));
 
 	return ret;
