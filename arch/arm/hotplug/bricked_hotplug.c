@@ -96,7 +96,7 @@ static int get_slowest_cpu(void) {
 	unsigned long rate, slow_rate = 0;
 
 	for (i = 1; i < DEFAULT_MAX_CPUS_ONLINE; i++) {
-		if (!cpu_online(i))
+		if (cpu_is_offline(i))
 			continue;
 		rate = get_rate(i);
 		if (slow_rate == 0) {
@@ -118,7 +118,7 @@ static unsigned long get_slowest_cpu_rate(void) {
 	unsigned long rate, slow_rate = 0;
 
 	for (i = 0; i < DEFAULT_MAX_CPUS_ONLINE; i++) {
-		if (!cpu_online(i))
+		if (cpu_is_offline(i))
 			continue;
 		rate = get_rate(i);
 		if ((rate < slow_rate) && (slow_rate != 0)) {
@@ -221,7 +221,7 @@ static void __ref bricked_hotplug_work(struct work_struct *work) {
 	case MSM_MPDEC_UP:
 		cpu = cpumask_next_zero(0, cpu_online_mask);
 		if (cpu < DEFAULT_MAX_CPUS_ONLINE) {
-			if (!cpu_online(cpu))
+			if (cpu_is_offline(cpu))
 				cpu_up(cpu);
 		}
 		break;
@@ -588,7 +588,7 @@ static ssize_t store_max_cpus_online(struct device *dev,
 		for (cpu = DEFAULT_MAX_CPUS_ONLINE; cpu > 0; cpu--) {
 			if (num_online_cpus() <= hotplug.max_cpus_online)
 				break;
-			if (!cpu_online(cpu))
+			if (cpu_is_offline(cpu))
 				continue;
 			cpu_down(cpu);
 		}

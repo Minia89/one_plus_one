@@ -155,7 +155,7 @@ static void __cpuinit asmp_resume(struct power_suspend *handler) {
 		for_each_present_cpu(cpu) {
 			if (num_online_cpus() >= asmp_param.max_cpus)
 				break;
-			if (!cpu_online(cpu))
+			if (cpu_is_offline(cpu))
 				cpu_up(cpu);
 		}
 	/* resume main work thread */
@@ -186,7 +186,7 @@ static int __cpuinit set_enabled(const char *val, const struct kernel_param *kp)
 		for_each_present_cpu(cpu) {
 			if (num_online_cpus() >= nr_cpu_ids)
 				break;
-			if (!cpu_online(cpu))
+			if (cpu_is_offline(cpu))
 				cpu_up(cpu);
 		}
 		pr_info(ASMP_TAG"Disabled.\n");
