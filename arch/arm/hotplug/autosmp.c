@@ -38,7 +38,6 @@ struct asmp_cpudata_t {
 };
 
 static struct delayed_work asmp_work;
-static struct workqueue_struct *asmp_workq;
 static DEFINE_PER_CPU(struct asmp_cpudata_t, asmp_cpudata);
 
 static struct asmp_param_struct {
@@ -126,7 +125,7 @@ static void __cpuinit asmp_work_fn(struct work_struct *work) {
 		}
 	} /* else do nothing */
 
-	mod_delayed_work(asmp_workq, &asmp_work, delay_jif);
+	mod_delayed_work(system_wq, &asmp_work, delay_jif);
 }
 
 static void asmp_suspend(struct power_suspend *handler) {
@@ -158,7 +157,7 @@ static void __cpuinit asmp_resume(struct power_suspend *handler) {
 		}
 	/* resume main work thread */
 	if (enabled)
-		mod_delayed_work(asmp_workq, &asmp_work,
+		mod_delayed_work(system_wq, &asmp_work,
 				msecs_to_jiffies(asmp_param.delay));
 
 	pr_info(ASMP_TAG"Screen -> On. Resumed.\n");
@@ -175,7 +174,7 @@ static int __cpuinit set_enabled(const char *val, const struct kernel_param *kp)
 
 	ret = param_set_bool(val, kp);
 	if (enabled) {
-		mod_delayed_work(asmp_workq, &asmp_work,
+		mod_delayed_work(system_wq, &asmp_work,
 				msecs_to_jiffies(asmp_param.delay));
 		pr_info(ASMP_TAG"Enabled.\n");
 	} else {
@@ -298,12 +297,8 @@ static int __init asmp_init(void) {
 	for_each_possible_cpu(cpu)
 		per_cpu(asmp_cpudata, cpu).times_hotplugged = 0;
 
-	asmp_workq = alloc_workqueue("asmp", WQ_HIGHPRI, 0);
-	if (!asmp_workq)
-		return -ENOMEM;
-	INIT_DELAYED_WORK(&asmp_work, asmp_work_fn);
 	if (enabled)
-		mod_delayed_work(asmp_workq, &asmp_work,
+		mod_delayed_work(system_wq, &asmp_work,
 				   msecs_to_jiffies(ASMP_STARTDELAY));
 
 	register_power_suspend(&asmp_power_suspend_handler);
