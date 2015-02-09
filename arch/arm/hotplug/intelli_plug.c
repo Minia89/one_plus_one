@@ -36,7 +36,7 @@
 #else
 #ifdef CONFIG_LCD_NOTIFY
 /* if you wish to use LCD NOTIFY, change undef to define */
-#undef USE_LCD_NOTIFY
+#define USE_LCD_NOTIFY
 #endif
 #endif
 
