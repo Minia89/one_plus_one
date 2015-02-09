@@ -67,10 +67,9 @@ static unsigned long delay_jif = 0;
 static int enabled __read_mostly = 0;
 
 static void __cpuinit asmp_work_fn(struct work_struct *work) {
+	unsigned int cpu = 0, slow_cpu = 0;
 	if (!enabled)
 		return;
-
-	unsigned int cpu = 0, slow_cpu = 0;
 	unsigned int rate, cpu0_rate, slow_rate = UINT_MAX, fast_rate;
 	unsigned int max_rate, up_rate, down_rate;
 	int nr_cpu_online;
@@ -134,10 +133,9 @@ static void __cpuinit asmp_work_fn(struct work_struct *work) {
 }
 
 static void asmp_lcd_suspend(struct work_struct *work) {
+	unsigned int cpu;
 	if (!enabled)
 		return;
-
-	unsigned int cpu;
 
 	/* unplug online cpu cores */
 	if (asmp_param.scroff_single_core)
@@ -199,10 +197,10 @@ static int __ref lcd_notifier_callback(struct notifier_block *this,
  	case LCD_EVENT_OFF_START:
  		break;
 	case LCD_EVENT_ON_START:
-	queue_work_on(0, asmp_workq, &resume);
+	queue_work_on(0, system_wq, &resume);
 		break;
 	case LCD_EVENT_OFF_END:
-	queue_work_on(0, asmp_workq, &suspend);
+	queue_work_on(0, system_wq, &suspend);
 		break;
 	default:
 		break;
