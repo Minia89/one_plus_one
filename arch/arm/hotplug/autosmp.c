@@ -26,7 +26,7 @@
 #include <linux/cpu.h>
 #include <linux/cpumask.h>
 #include <linux/hrtimer.h>
-#include <linux/powersuspend.h>
+#include <linux/lcd_notify.h>
 
 #define DEBUG 0
 
@@ -39,6 +39,8 @@ struct asmp_cpudata_t {
 
 static struct delayed_work asmp_work;
 static DEFINE_PER_CPU(struct asmp_cpudata_t, asmp_cpudata);
+struct notifier_block notify;
+static struct work_struct suspend, resume;
 
 static struct asmp_param_struct {
 	unsigned int delay;
@@ -65,6 +67,9 @@ static unsigned long delay_jif = 0;
 static int enabled __read_mostly = 0;
 
 static void __cpuinit asmp_work_fn(struct work_struct *work) {
+	if (!enabled)
+		return;
+
 	unsigned int cpu = 0, slow_cpu = 0;
 	unsigned int rate, cpu0_rate, slow_rate = UINT_MAX, fast_rate;
 	unsigned int max_rate, up_rate, down_rate;
@@ -128,7 +133,10 @@ static void __cpuinit asmp_work_fn(struct work_struct *work) {
 	mod_delayed_work(system_wq, &asmp_work, delay_jif);
 }
 
-static void asmp_suspend(struct power_suspend *handler) {
+static void asmp_lcd_suspend(struct work_struct *work) {
+	if (!enabled)
+		return;
+
 	unsigned int cpu;
 
 	/* unplug online cpu cores */
@@ -137,14 +145,12 @@ static void asmp_suspend(struct power_suspend *handler) {
 			if (cpu && cpu_online(cpu))
 				cpu_down(cpu);
 
-	/* suspend main work thread */
-	if (enabled)
-		cancel_delayed_work_sync(&asmp_work);
-
 	pr_info(ASMP_TAG"Screen -> Off. Suspended.\n");
 }
 
-static void __cpuinit asmp_resume(struct power_suspend *handler) {
+static void __ref asmp_lcd_resume(struct work_struct *work) {
+	if (!enabled)
+		return;
 	unsigned int cpu;
 
 	/* hotplug offline cpu cores */
@@ -163,11 +169,6 @@ static void __cpuinit asmp_resume(struct power_suspend *handler) {
 	pr_info(ASMP_TAG"Screen -> On. Resumed.\n");
 }
 
-static struct power_suspend __refdata asmp_power_suspend_handler = {
-	.suspend = asmp_suspend,
-	.resume = asmp_resume,
-};
-
 static int __cpuinit set_enabled(const char *val, const struct kernel_param *kp) {
 	int ret;
 	unsigned int cpu;
@@ -179,7 +180,6 @@ static int __cpuinit set_enabled(const char *val, const struct kernel_param *kp)
 		pr_info(ASMP_TAG"Enabled.\n");
 	} else {
 		cancel_delayed_work_sync(&asmp_work);
-		unregister_power_suspend(&asmp_power_suspend_handler);
 		for_each_present_cpu(cpu) {
 			if (num_online_cpus() >= nr_cpu_ids)
 				break;
@@ -189,6 +189,26 @@ static int __cpuinit set_enabled(const char *val, const struct kernel_param *kp)
 		pr_info(ASMP_TAG"Disabled.\n");
 	}
 	return ret;
+}
+
+static int __ref lcd_notifier_callback(struct notifier_block *this,
+				unsigned long event, void *data)
+{
+	switch (event) {
+ 	case LCD_EVENT_ON_END:
+ 	case LCD_EVENT_OFF_START:
+ 		break;
+	case LCD_EVENT_ON_START:
+	queue_work_on(0, asmp_workq, &resume);
+		break;
+	case LCD_EVENT_OFF_END:
+	queue_work_on(0, asmp_workq, &suspend);
+		break;
+	default:
+		break;
+	}
+
+	return NOTIFY_OK;
 }
 
 static struct kernel_param_ops module_ops = {
@@ -297,17 +317,24 @@ static int __init asmp_init(void) {
 	for_each_possible_cpu(cpu)
 		per_cpu(asmp_cpudata, cpu).times_hotplugged = 0;
 
+	notify.notifier_call = lcd_notifier_callback;
+	if (lcd_register_client(&notify) != 0)
+		pr_warn(ASMP_TAG"lcd client register error\n");
+
+	INIT_WORK(&resume, asmp_lcd_resume);
+	INIT_WORK(&suspend, asmp_lcd_suspend);
+	INIT_DELAYED_WORK(&asmp_work, asmp_work_fn);
+
 	if (enabled)
 		mod_delayed_work(system_wq, &asmp_work,
 				   msecs_to_jiffies(ASMP_STARTDELAY));
-
-	register_power_suspend(&asmp_power_suspend_handler);
 
 	asmp_kobject = kobject_create_and_add("autosmp", kernel_kobj);
 	if (asmp_kobject) {
 		rc = sysfs_create_group(asmp_kobject, &asmp_attr_group);
 		if (rc)
 			pr_warn(ASMP_TAG"sysfs: ERROR, create sysfs group.");
+
 #if DEBUG
 		rc = sysfs_create_group(asmp_kobject, &asmp_stats_attr_group);
 		if (rc)
