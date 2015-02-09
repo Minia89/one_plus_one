@@ -68,14 +68,15 @@ static int enabled __read_mostly = 0;
 
 static void __cpuinit asmp_work_fn(struct work_struct *work) {
 	unsigned int cpu = 0, slow_cpu = 0;
-	if (!enabled)
-		return;
 	unsigned int rate, cpu0_rate, slow_rate = UINT_MAX, fast_rate;
 	unsigned int max_rate, up_rate, down_rate;
 	int nr_cpu_online;
+	
+	if (!enabled)
+		return;
 
 	cycle++;
-
+	
 	if (asmp_param.delay != delay0) {
 		delay0 = asmp_param.delay;
 		delay_jif = msecs_to_jiffies(delay0);
@@ -147,9 +148,9 @@ static void asmp_lcd_suspend(struct work_struct *work) {
 }
 
 static void __ref asmp_lcd_resume(struct work_struct *work) {
+	unsigned int cpu;
 	if (!enabled)
 		return;
-	unsigned int cpu;
 
 	/* hotplug offline cpu cores */
 	if (asmp_param.scroff_single_core)
