@@ -254,7 +254,7 @@ static void __ref decide_hotplug_func(struct work_struct *work)
 	}
 
 reschedule:
-	queue_delayed_work_on(0, wq, &decide_hotplug,
+	mod_delayed_work_on(0, wq, &decide_hotplug,
 		msecs_to_jiffies(t->timer * HZ));
 }
 
@@ -654,7 +654,7 @@ static int __devinit mako_hotplug_probe(struct platform_device *pdev)
 	INIT_WORK(&suspend, mako_hotplug_suspend);
 	INIT_DELAYED_WORK(&decide_hotplug, decide_hotplug_func);
 
-	queue_delayed_work_on(0, wq, &decide_hotplug, HZ * 20);
+	mod_delayed_work_on(0, wq, &decide_hotplug, HZ * 20);
 
 	cpufreq_register_notifier(&cpufreq_notifier,
 			CPUFREQ_POLICY_NOTIFIER);
