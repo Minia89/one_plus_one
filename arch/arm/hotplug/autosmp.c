@@ -128,7 +128,7 @@ static void __cpuinit asmp_work_fn(struct work_struct *work) {
 		}
 	} /* else do nothing */
 
-	queue_delayed_work(asmp_workq, &asmp_work, delay_jif);
+	mod_delayed_work(asmp_workq, &asmp_work, delay_jif);
 }
 
 static void asmp_suspend(struct power_suspend *handler) {
@@ -160,7 +160,7 @@ static void __cpuinit asmp_resume(struct power_suspend *handler) {
 		}
 	/* resume main work thread */
 	if (enabled)
-		queue_delayed_work(asmp_workq, &asmp_work,
+		mod_delayed_work(asmp_workq, &asmp_work,
 				msecs_to_jiffies(asmp_param.delay));
 
 	pr_info(ASMP_TAG"Screen -> On. Resumed.\n");
@@ -177,7 +177,7 @@ static int __cpuinit set_enabled(const char *val, const struct kernel_param *kp)
 
 	ret = param_set_bool(val, kp);
 	if (enabled) {
-		queue_delayed_work(asmp_workq, &asmp_work,
+		mod_delayed_work(asmp_workq, &asmp_work,
 				msecs_to_jiffies(asmp_param.delay));
 		pr_info(ASMP_TAG"Enabled.\n");
 	} else {
@@ -305,7 +305,7 @@ static int __init asmp_init(void) {
 		return -ENOMEM;
 	INIT_DELAYED_WORK(&asmp_work, asmp_work_fn);
 	if (enabled)
-		queue_delayed_work(asmp_workq, &asmp_work,
+		mod_delayed_work(asmp_workq, &asmp_work,
 				   msecs_to_jiffies(ASMP_STARTDELAY));
 
 	register_power_suspend(&asmp_power_suspend_handler);
