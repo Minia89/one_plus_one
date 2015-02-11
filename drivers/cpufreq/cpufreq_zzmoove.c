@@ -80,7 +80,7 @@ static char custom_profile[20] = "custom";			// ZZ: name to show in sysfs if any
 #define DEF_PROFILE_STICKY_MODE				(1)
 
 // Yank: enable/disable debugging code
-//#define ZZMOOVE_DEBUG
+#define ZZMOOVE_DEBUG
 
 /*
  * The polling frequency of this governor depends on the capability of
