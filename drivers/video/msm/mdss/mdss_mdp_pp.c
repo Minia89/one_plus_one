@@ -419,6 +419,7 @@ static void pp_ad_bypass_config(struct mdss_ad_info *ad,
 static int mdss_mdp_ad_setup(struct msm_fb_data_type *mfd);
 static void pp_ad_cfg_lut(char __iomem *addr, u32 *data);
 static u32 pp_ad_attenuate_bl(u32 bl, struct mdss_ad_info *ad);
+static struct msm_fb_data_type *mdss_get_mfd_from_index(int index);
 static int pp_num_to_side(struct mdss_mdp_ctl *ctl, u32 num);
 static inline bool pp_sts_is_enabled(u32 sts, int side);
 static inline void pp_sts_set_split_bits(u32 *sts, u32 bits);
@@ -1885,151 +1886,89 @@ int mdss_mdp_pp_resume(struct mdss_mdp_ctl *ctl, u32 dspp_num)
 	return 0;
 }
 
-static struct mdp_ar_gc_lut_data test_r[GC_LUT_SEGMENTS] = {
-		{0x00000000, 0x00000100, 0x00000000},
-		{0x00000FFF, 0x00000000, 0x00007F80},
-		{0x00000000, 0x00000000, 0x00000000},
-		{0x00000000, 0x00000000, 0x00000000},
-		{0x00000000, 0x00000000, 0x00000000},
-		{0x00000000, 0x00000000, 0x00000000},
-		{0x00000000, 0x00000000, 0x00000000},
-		{0x00000000, 0x00000000, 0x00000000},
-		{0x00000000, 0x00000000, 0x00000000},
-		{0x00000000, 0x00000000, 0x00000000},
-		{0x00000000, 0x00000000, 0x00000000},
-		{0x00000000, 0x00000000, 0x00000000},
-		{0x00000000, 0x00000000, 0x00000000},
-		{0x00000000, 0x00000000, 0x00000000},
-		{0x00000000, 0x00000000, 0x00000000},
-		{0x00000000, 0x00000000, 0x00000000}
-};
-
-static struct mdp_ar_gc_lut_data test_g[GC_LUT_SEGMENTS] = {
-		{0x00000000, 0x00000100, 0x00000000},
-		{0x00000FFF, 0x00000000, 0x00007F80},
-		{0x00000000, 0x00000000, 0x00000000},
-		{0x00000000, 0x00000000, 0x00000000},
-		{0x00000000, 0x00000000, 0x00000000},
-		{0x00000000, 0x00000000, 0x00000000},
-		{0x00000000, 0x00000000, 0x00000000},
-		{0x00000000, 0x00000000, 0x00000000},
-		{0x00000000, 0x00000000, 0x00000000},
-		{0x00000000, 0x00000000, 0x00000000},
-		{0x00000000, 0x00000000, 0x00000000},
-		{0x00000000, 0x00000000, 0x00000000},
-		{0x00000000, 0x00000000, 0x00000000},
-		{0x00000000, 0x00000000, 0x00000000},
-		{0x00000000, 0x00000000, 0x00000000},
-		{0x00000000, 0x00000000, 0x00000000}
-};
-
-static struct mdp_ar_gc_lut_data test_b[GC_LUT_SEGMENTS] = {
-		{0x00000000, 0x00000100, 0x00000000},
-		{0x00000FFF, 0x00000000, 0x00007F80},
-		{0x00000000, 0x00000000, 0x00000000},
-		{0x00000000, 0x00000000, 0x00000000},
-		{0x00000000, 0x00000000, 0x00000000},
-		{0x00000000, 0x00000000, 0x00000000},
-		{0x00000000, 0x00000000, 0x00000000},
-		{0x00000000, 0x00000000, 0x00000000},
-		{0x00000000, 0x00000000, 0x00000000},
-		{0x00000000, 0x00000000, 0x00000000},
-		{0x00000000, 0x00000000, 0x00000000},
-		{0x00000000, 0x00000000, 0x00000000},
-		{0x00000000, 0x00000000, 0x00000000},
-		{0x00000000, 0x00000000, 0x00000000},
-		{0x00000000, 0x00000000, 0x00000000},
-		{0x00000000, 0x00000000, 0x00000000}
-};
-
-static void mdss_mdp_pp_argc(void)
+void mdss_mdp_pp_kcal_enable(bool enable)
 {
-	int disp_num = 0;
-	u32 tbl_size;
-
-	struct mdp_ar_gc_lut_data *r_data;
-	struct mdp_ar_gc_lut_data *g_data;
-	struct mdp_ar_gc_lut_data *b_data;
+	u32 disp_num = 0, copyback = 0;
 	struct mdp_pgc_lut_data *pgc_config;
 
-	r_data = &mdss_pp_res->gc_lut_r[disp_num][0];
-	g_data = &mdss_pp_res->gc_lut_g[disp_num][0];
-	b_data = &mdss_pp_res->gc_lut_b[disp_num][0];
-
-	tbl_size = GC_LUT_SEGMENTS * sizeof(struct mdp_ar_gc_lut_data);
-	memcpy(r_data, test_r, tbl_size);
-	memcpy(g_data, test_g, tbl_size);
-	memcpy(b_data, test_b, tbl_size);
-
 	pgc_config = &mdss_pp_res->pgc_disp_cfg[disp_num];
+	pgc_config->block = MDP_LOGICAL_BLOCK_DISP_0;
 
-	pgc_config->r_data =
-		&mdss_pp_res->gc_lut_r[disp_num][0];
-	pgc_config->g_data =
-		&mdss_pp_res->gc_lut_g[disp_num][0];
-	pgc_config->b_data =
-		&mdss_pp_res->gc_lut_b[disp_num][0];
+	if (enable) {
+		pgc_config->flags = MDP_PP_OPS_WRITE | MDP_PP_OPS_ENABLE;
+		pgc_config->r_data = &mdss_pp_res->gc_lut_r[disp_num][0];
+		pgc_config->g_data = &mdss_pp_res->gc_lut_g[disp_num][0];
+		pgc_config->b_data = &mdss_pp_res->gc_lut_b[disp_num][0];
+	} else
+		pgc_config->flags = MDP_PP_OPS_WRITE | MDP_PP_OPS_DISABLE;
 
-	pgc_config->flags |= MDP_PP_OPS_WRITE;
-	pgc_config->flags |= MDP_PP_OPS_ENABLE;
-
-	pr_debug(">>>>> %s\n", __func__);
+	mdss_mdp_argc_config(pgc_config, &copyback);
 }
 
-void update_preset_lcdc_lut(int kr, int kg, int kb)
+void mdss_mdp_pp_kcal_update(int kr, int kg, int kb)
 {
 	int i;
-	int disp_num = 0;
+	u32 disp_num = 0, copyback = 0;
 	struct mdp_pgc_lut_data *pgc_config;
 
-	pr_info("r=[%d], g=[%d], b=[%d]\n", kr, kg, kb);
+	pgc_config = &mdss_pp_res->pgc_disp_cfg[disp_num];
 
 	for (i = 0; i < GC_LUT_SEGMENTS; i++) {
-		mdss_pp_res->gc_lut_r[disp_num][i].slope =
-		SCALED_BY_KCAL(test_r[i].slope, kr);
-		mdss_pp_res->gc_lut_r[disp_num][i].offset =
-		SCALED_BY_KCAL(test_r[i].offset, kr);
-
-		mdss_pp_res->gc_lut_g[disp_num][i].slope =
-		SCALED_BY_KCAL(test_g[i].slope, kg);
-		mdss_pp_res->gc_lut_g[disp_num][i].offset =
-		SCALED_BY_KCAL(test_g[i].offset, kg);
-
-		mdss_pp_res->gc_lut_b[disp_num][i].slope =
-		SCALED_BY_KCAL(test_b[i].slope, kb);
-		mdss_pp_res->gc_lut_b[disp_num][i].offset =
-		SCALED_BY_KCAL(test_b[i].offset, kb);
+		pgc_config->r_data[i].slope = kr;
+		pgc_config->g_data[i].slope = kg;
+		pgc_config->b_data[i].slope = kb;
 	}
 
-	pgc_config = &mdss_pp_res->pgc_disp_cfg[disp_num];
-	pgc_config->flags |= MDP_PP_OPS_WRITE;
-	pgc_config->flags |= MDP_PP_OPS_ENABLE;
-	mdss_pp_res->pp_disp_flags[disp_num] |= PP_FLAGS_DIRTY_PGC;
-
-	pr_debug(">>>>> %s\n", __func__);
+	mdss_mdp_argc_config(pgc_config, &copyback);
 }
 
-int mdss_mdp_pp_get_kcal(int data)
+void mdss_mdp_pp_kcal_pa(struct kcal_lut_data *lut_data)
 {
-	int ret;
-	int disp_num = 0;
+	u32 copyback = 0;
+	struct mdp_pa_cfg_data pa_config;
 
-	switch (data) {
-		case KCAL_DATA_R:
-			ret = mdss_pp_res->gc_lut_r[disp_num][0].slope;
-			break;
-		case KCAL_DATA_G:
-			ret = mdss_pp_res->gc_lut_g[disp_num][0].slope;
-			break;
-		case KCAL_DATA_B:
-			ret = mdss_pp_res->gc_lut_b[disp_num][0].slope;
-			break;
-		default:
-			ret = 0;
-			break;
-	}
+	memset(&pa_config, 0, sizeof(struct mdp_pa_cfg_data));
 
-	return (ret == NUM_QLUT) ? MAX_KCAL : ret;
+	pa_config.block = MDP_LOGICAL_BLOCK_DISP_0;
+	pa_config.pa_data.flags = MDP_PP_OPS_WRITE | MDP_PP_OPS_ENABLE;
+	pa_config.pa_data.sat_adj = lut_data->sat;
+	pa_config.pa_data.hue_adj = lut_data->hue;
+	pa_config.pa_data.val_adj = lut_data->val;
+	pa_config.pa_data.cont_adj = lut_data->cont;
+
+	mdss_mdp_pa_config(&pa_config, &copyback);
+}
+
+void mdss_mdp_pp_kcal_invert(int enable)
+{
+	int i;
+	u32 disp_num = 0, copyback = 0, copy_from_kernel = 1;
+	struct msm_fb_data_type *igc_mfd;
+	struct mdp_igc_lut_data *igc_config;
+
+	igc_mfd = mdss_get_mfd_from_index(0);
+
+	igc_config = &mdss_pp_res->igc_disp_cfg[disp_num];
+	igc_config->c0_c1_data = &mdss_pp_res->igc_lut_c0c1[disp_num][0];
+	igc_config->c2_data = &mdss_pp_res->igc_lut_c2[disp_num][0];
+	igc_config->block = MDP_LOGICAL_BLOCK_DISP_0;
+	igc_config->len = IGC_LUT_ENTRIES;
+
+	if (igc_mfd && enable) {
+		igc_config->ops = MDP_PP_OPS_WRITE | MDP_PP_OPS_ENABLE;
+		for (i = 0; i < IGC_LUT_ENTRIES; i++) {
+			igc_c0_c1[i] = (igc_Table_RGB[i] & 0xfff) |
+				((igc_Table_RGB[i] & 0xfff)) << 16;
+			igc_c2[i] = igc_Table_RGB[i];
+		}
+		igc_config->c0_c1_data = &igc_c0_c1[0];
+		igc_config->c2_data = &igc_c2[0];
+	} else if (igc_mfd && !enable)
+		igc_config->ops = MDP_PP_OPS_WRITE | MDP_PP_OPS_DISABLE;
+	else
+		return;
+
+	mdss_mdp_igc_lut_config(igc_config, &copyback, copy_from_kernel);
 }
 
 int mdss_mdp_pp_init(struct device *dev)
