@@ -2010,11 +2010,6 @@ int mdss_mdp_pp_init(struct device *dev)
 		}
 	}
 
-	if (!ret) {
-		mdss_mdp_pp_argc();
-		update_preset_lcdc_lut(MAX_KCAL, MAX_KCAL, MAX_KCAL);
-	}
-
 	mutex_unlock(&mdss_pp_mutex);
 	return ret;
 }

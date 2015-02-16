@@ -256,10 +256,8 @@ static void kcal_send_sweep(int send)
 {
 	int kcal_r, kcal_g, kcal_b;
 
-	kcal_r = mdss_mdp_pp_get_kcal(KCAL_DATA_R);
-	kcal_g = mdss_mdp_pp_get_kcal(KCAL_DATA_G);
-	kcal_b = mdss_mdp_pp_get_kcal(KCAL_DATA_B);
-
+	mdss_mdp_pp_kcal_update(kcal_r = NUM_QLUT, kcal_g = NUM_QLUT, kcal_b =  NUM_QLUT);
+	
 	switch (send) {
 		case KCAL_DOWN:
 			kcal_r -= KCAL_ADJUST;
@@ -279,7 +277,7 @@ static void kcal_send_sweep(int send)
 			break;
 	}
 
-	update_preset_lcdc_lut(kcal_r, kcal_g, kcal_b);
+	mdss_mdp_pp_kcal_update(kcal_r, kcal_g, kcal_b);
 }
 #endif
 
