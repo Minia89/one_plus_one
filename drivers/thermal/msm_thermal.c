@@ -144,7 +144,7 @@ static void check_temp(struct work_struct *work)
 	}
 
 reschedule:
-	schedule_delayed_work_on(0, &check_temp_work, msecs_to_jiffies(poll_interval));
+	schedule_delayed_work(&check_temp_work, msecs_to_jiffies(poll_interval));
 }
 
 static int msm_thermal_dev_probe(struct platform_device *pdev)
