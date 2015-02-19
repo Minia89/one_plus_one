@@ -18,10 +18,6 @@
 #ifndef __MDSS_MDP_KCAL_CTRL_H
 #define __MDSS_MDP_KCAL_CTRL_H
 
-#define KCAL_DATA_R 0x01
-#define KCAL_DATA_G 0x02
-#define KCAL_DATA_B 0x03
-
 #define NUM_QLUT 0x100
 #define DEF_PA 0xff
 
