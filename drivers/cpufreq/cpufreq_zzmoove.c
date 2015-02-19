@@ -29,6 +29,7 @@
 #include <linux/ktime.h>
 #include <linux/sched.h>
 #include <linux/version.h>
+/*
 #if defined(CONFIG_HAS_EARLYSUSPEND)
 #include <linux/earlysuspend.h>
 #endif
@@ -47,6 +48,7 @@
 #if defined(CONFIG_THERMAL_TSENS8974) || defined(CONFIG_THERMAL_TSENS8960) && defined(ENABLE_QCOM_THERMAL_SUPPORT) // ZZ: qualcomm temperature sensor
 #include <linux/msm_tsens.h>
 #endif
+*/
 
 #define ENABLE_INPUTBOOSTER			// ZZ: enable/disable inputbooster support
 #define ENABLE_WORK_RESTARTLOOP			// ZZ: enable/disable restart loop for touchboost
@@ -80,7 +82,7 @@ static char custom_profile[20] = "custom";			// ZZ: name to show in sysfs if any
 #define DEF_PROFILE_STICKY_MODE				(1)
 
 // Yank: enable/disable debugging code
-#define ZZMOOVE_DEBUG
+//define ZZMOOVE_DEBUG
 
 /*
  * The polling frequency of this governor depends on the capability of
