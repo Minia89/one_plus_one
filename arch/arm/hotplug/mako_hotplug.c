@@ -31,7 +31,7 @@
 
 #define MAKO_HOTPLUG "mako_hotplug"
 
-#define DEFAULT_HOTPLUG_ENABLED 0
+#define DEFAULT_HOTPLUG_ENABLED 1
 #define DEFAULT_LOAD_THRESHOLD 80
 #define DEFAULT_HIGH_LOAD_COUNTER 10
 #define DEFAULT_MAX_LOAD_COUNTER 20
@@ -63,7 +63,7 @@ struct cpu_stats {
 };
 
 struct hotplug_tunables {
-	/**
+	/*
 	 * whether make_hotplug is enabled or not
 	 */
 	unsigned int enabled;
@@ -259,16 +259,24 @@ reschedule:
 
 static void mako_hotplug_suspend(struct work_struct *work)
 {
+	struct hotplug_tunables *t = &tunables;
 	cpus_offline_work();
 
 	stats.counter = 0;
+
+	if (!t->enabled)
+		return;
 
 	pr_info("%s: suspend\n", MAKO_HOTPLUG);
 }
 
 static void __ref mako_hotplug_resume(struct work_struct *work)
 {
+	struct hotplug_tunables *t = &tunables;
 	cpus_online_work();
+
+	if (!t->enabled)
+		return;
 
 	pr_info("%s: resume\n", MAKO_HOTPLUG);
 }
