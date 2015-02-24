@@ -31,43 +31,29 @@
 
 #define MAKO_HOTPLUG "mako_hotplug"
 
-#define DEFAULT_HOTPLUG_ENABLED 1
 #define DEFAULT_LOAD_THRESHOLD 80
 #define DEFAULT_HIGH_LOAD_COUNTER 10
 #define DEFAULT_MAX_LOAD_COUNTER 20
-#define DEFAULT_CPUFREQ_UNPLUG_LIMIT 1497600
+#define DEFAULT_CPUFREQ_UNPLUG_LIMIT 1800000
 #define DEFAULT_MIN_TIME_CPU_ONLINE 1
 #define DEFAULT_TIMER 1
 
 #define MIN_CPU_UP_US (500 * USEC_PER_MSEC)
 #define NUM_POSSIBLE_CPUS num_possible_cpus()
-#define HIGH_LOAD (95 << 1)
-#define MAX_FREQ_CAP 1497600
+#define HIGH_LOAD (95)
 
 struct cpu_stats {
 	unsigned int counter;
 	struct notifier_block notif;
 	u64 timestamp;
-	uint32_t freq;
-	uint32_t saved_freq;
-	bool screen_cap_lock;
-	bool suspend;
 	bool booted;
 } stats = {
 	.counter = 0,
 	.timestamp = 0,
-	.freq = 0,
-	.screen_cap_lock = false,
-	.suspend = false,
 	.booted = false,
 };
 
 struct hotplug_tunables {
-	/*
-	 * whether make_hotplug is enabled or not
-	 */
-	unsigned int enabled;
-
 	/*
 	 * system load threshold to decide when online or offline cores
 	 * from 0 to 100
@@ -120,8 +106,6 @@ static inline void cpus_online_work(void)
 		if (cpu_is_offline(cpu))
 			cpu_up(cpu);
 	}
-
-	pr_info("%s: all cpus were onlined\n", MAKO_HOTPLUG);
 }
 
 static inline void cpus_offline_work(void)
@@ -132,8 +116,6 @@ static inline void cpus_offline_work(void)
 		if (cpu_online(cpu))
 			cpu_down(cpu);
 	}
-
-	pr_info("%s: all cpus were offlined\n", MAKO_HOTPLUG);
 }
 
 static inline bool cpus_cpufreq_work(void)
@@ -151,18 +133,20 @@ static inline bool cpus_cpufreq_work(void)
 	for (cpu = 2; cpu < 4; cpu++)
 		current_freq += cpufreq_quick_get(cpu);
 
-	return (current_freq >> 1) >= t->cpufreq_unplug_limit;
+	current_freq >>= 1;
+
+	return current_freq >= t->cpufreq_unplug_limit;
 }
 
 static void cpu_revive(unsigned int load)
 {
 	struct hotplug_tunables *t = &tunables;
-	unsigned int counter_hysteria = 5;
+	unsigned int counter_hysteria = 3;
 
 	/*
 	 * we should care about a very high load spike and online the
-	 * cpu in question. If the device is under stress for at least 500ms
-	 * online the cpu, no questions asked. 500ms here equals five samples
+	 * cpus in question. If the device is under stress for at least 300ms
+	 * online all cores, no questions asked. 300ms here equals three samples
 	 */
 	if (load >= HIGH_LOAD && stats.counter >= counter_hysteria)
 		goto online_all;
@@ -212,12 +196,9 @@ static void cpu_smash(void)
 static void __ref decide_hotplug_func(struct work_struct *work)
 {
 	struct hotplug_tunables *t = &tunables;
-	unsigned int cur_load = 0;
+	unsigned long cur_load = 0;
 	unsigned int cpu;
 	unsigned int online_cpus = num_online_cpus();
-
-	if (!t->enabled)
-		goto reschedule;
 
 	/*
 	 * reschedule early when the user doesn't want more than 2 cores online
@@ -259,24 +240,14 @@ reschedule:
 
 static void mako_hotplug_suspend(struct work_struct *work)
 {
-	struct hotplug_tunables *t = &tunables;
 	cpus_offline_work();
-
-	stats.counter = 0;
-
-	if (!t->enabled)
-		return;
 
 	pr_info("%s: suspend\n", MAKO_HOTPLUG);
 }
 
 static void __ref mako_hotplug_resume(struct work_struct *work)
 {
-	struct hotplug_tunables *t = &tunables;
 	cpus_online_work();
-
-	if (!t->enabled)
-		return;
 
 	pr_info("%s: resume\n", MAKO_HOTPLUG);
 }
@@ -284,11 +255,6 @@ static void __ref mako_hotplug_resume(struct work_struct *work)
 static int lcd_notifier_callback(struct notifier_block *this,
 	unsigned long event, void *data)
 {
-	struct hotplug_tunables *t = &tunables;
-
-	if (!t->enabled)
-		return NOTIFY_OK;
-
 	if (event == LCD_EVENT_ON_START) {
 		if (!stats.booted) {
 			/*
@@ -308,30 +274,6 @@ static int lcd_notifier_callback(struct notifier_block *this,
 /*
  * Sysfs get/set entries start
  */
-
-static ssize_t make_hotplug_enabled_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
-{
-	struct hotplug_tunables *t = &tunables;
-
-	return snprintf(buf, PAGE_SIZE, "%u\n", t->enabled);
-}
-
-static ssize_t make_hotplug_enabled_store(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t size)
-{
-	struct hotplug_tunables *t = &tunables;
-	int ret;
-	unsigned long new_val;
-
-	ret = kstrtoul(buf, 0, &new_val);
-	if (ret < 0)
-		return ret;
-
-	t->enabled = new_val > 1 ? 1 : new_val;
-
-	return size;
-}
 
 static ssize_t load_threshold_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
@@ -477,8 +419,6 @@ static ssize_t timer_store(struct device *dev, struct device_attribute *attr,
 	return size;
 }
 
-static DEVICE_ATTR(enabled, 0664, make_hotplug_enabled_show,
-		make_hotplug_enabled_store);
 static DEVICE_ATTR(load_threshold, 0664, load_threshold_show,
 		load_threshold_store);
 static DEVICE_ATTR(high_load_counter, 0664, high_load_counter_show,
@@ -492,7 +432,6 @@ static DEVICE_ATTR(min_time_cpu_online, 0664, min_time_cpu_online_show,
 static DEVICE_ATTR(timer, 0664, timer_show, timer_store);
 
 static struct attribute *mako_hotplug_control_attributes[] = {
-	&dev_attr_enabled.attr,
 	&dev_attr_load_threshold.attr,
 	&dev_attr_high_load_counter.attr,
 	&dev_attr_max_load_counter.attr,
@@ -515,7 +454,7 @@ static struct miscdevice mako_hotplug_control_device = {
  * Sysfs get/set entries end
  */
 
-static int mako_hotplug_probe(struct platform_device *pdev)
+static int __devinit mako_hotplug_probe(struct platform_device *pdev)
 {
 	int ret = 0;
 	struct hotplug_tunables *t = &tunables;
@@ -527,7 +466,6 @@ static int mako_hotplug_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	t->enabled = DEFAULT_HOTPLUG_ENABLED;
 	t->load_threshold = DEFAULT_LOAD_THRESHOLD;
 	t->high_load_counter = DEFAULT_HIGH_LOAD_COUNTER;
 	t->max_load_counter = DEFAULT_MAX_LOAD_COUNTER;
