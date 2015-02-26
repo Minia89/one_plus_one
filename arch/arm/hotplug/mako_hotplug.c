@@ -27,10 +27,7 @@
 #include <linux/delay.h>
 #include <linux/input.h>
 #include <linux/jiffies.h>
-
-#ifdef CONFIG_POWERSUSPEND
-#include <linux/powersuspend.h>
-#endif
+#include <linux/lcd_notify.h>
 
 #define MAKO_HOTPLUG "mako_hotplug"
 
@@ -49,6 +46,7 @@
 
 struct cpu_stats {
 	unsigned int counter;
+	struct notifier_block notif;
 	u64 timestamp;
 	bool booted;
 } stats = {
@@ -275,31 +273,25 @@ static void __ref mako_hotplug_resume(struct work_struct *work)
 	pr_info("%s: resume\n", MAKO_HOTPLUG);
 }
 
-#ifdef CONFIG_POWERSUSPEND
-static void __mako_hotplug_suspend(struct power_suspend *handler)
+static int lcd_notifier_callback(struct notifier_block *this,
+	unsigned long event, void *data)
 {
-	queue_work_on(0, wq, &suspend);
-}
 
-static void __mako_hotplug_resume(struct power_suspend *handler)
-{
-	if (!stats.booted) {
-		/*
-		 * let's start messing with the cores only after
-		 * the device has booted up
-		 */
-		queue_delayed_work_on(0, wq, &decide_hotplug, 0);
-		stats.booted = true;
-	}
-	else
-		queue_work_on(0, wq, &resume);
-}
+	if (event == LCD_EVENT_ON_START) {
+		if (!stats.booted) {
+			/*
+			 * let's start messing with the cores only after
+			 * the device has booted up
+			 */
+			queue_delayed_work_on(0, wq, &decide_hotplug, 0);
+			stats.booted = true;
+		} else
+			queue_work_on(0, wq, &resume);
+	} else if (event == LCD_EVENT_OFF_START)
+		queue_work_on(0, wq, &suspend);
 
-static struct power_suspend mako_hotplug_power_suspend_driver = {
-	.suspend = __mako_hotplug_suspend,
-	.resume = __mako_hotplug_resume,
-};
-#endif
+	return NOTIFY_OK;
+}
 
 /*
  * Sysfs get/set entries start
@@ -559,6 +551,13 @@ static int __devinit mako_hotplug_probe(struct platform_device *pdev)
 	t->timer = DEFAULT_TIMER;
 	t->min_cores_online = DEFAULT_MIN_CORES_ONLINE;
 
+	stats.notif.notifier_call = lcd_notifier_callback;
+
+	if (lcd_register_client(&stats.notif)) {
+		ret = -EINVAL;
+		goto err;
+	}
+
 	ret = misc_register(&mako_hotplug_control_device);
 	if (ret) {
 		ret = -EINVAL;
@@ -571,10 +570,6 @@ static int __devinit mako_hotplug_probe(struct platform_device *pdev)
 		ret = -EINVAL;
 		goto err;
 	}
-
-#ifdef CONFIG_POWERSUSPEND
-	register_power_suspend(&mako_hotplug_power_suspend_driver);
-#endif
 
 	INIT_WORK(&resume, mako_hotplug_resume);
 	INIT_WORK(&suspend, mako_hotplug_suspend);
