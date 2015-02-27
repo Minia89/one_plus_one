@@ -384,7 +384,7 @@ KBUILD_CPPFLAGS := -D__KERNEL__
 KBUILD_CFLAGS   := -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs \
 		   -fno-strict-aliasing -fno-common \
 		   -Werror-implicit-function-declaration \
-		   -Wno-format-security
+		   -Wno-format-security \
 		   $(KERNELFLAGS)
 KBUILD_AFLAGS_KERNEL := $(KERNELFLAGS)
 KBUILD_CFLAGS_KERNEL := $(KERNELFLAGS)
@@ -632,6 +632,7 @@ KBUILD_CFLAGS   += $(call cc-option, -gsplit-dwarf, -g)
 else
 KBUILD_CFLAGS	+= -g
 KBUILD_AFLAGS   += -Wa,-gdwarf-2
+endif
 endif
 ifdef CONFIG_DEBUG_INFO_DWARF4
 KBUILD_CFLAGS	+= $(call cc-option, -gdwarf-4,)
