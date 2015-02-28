@@ -27,8 +27,7 @@
 #include <linux/delay.h>
 #include <linux/input.h>
 #include <linux/jiffies.h>
-#include <linux/fb.h>
-#include <linux/notifier.h>
+#include <linux/lcd_notify.h>
 
 #define MAKO_HOTPLUG "mako_hotplug"
 
@@ -274,38 +273,24 @@ static void __ref mako_hotplug_resume(struct work_struct *work)
 	pr_info("%s: resume\n", MAKO_HOTPLUG);
 }
 
-static int fb_notifier_callback(struct notifier_block *self,
-				unsigned long event, void *data)
+static int lcd_notifier_callback(struct notifier_block *this,
+	unsigned long event, void *data)
 {
-	struct fb_event *evdata = data;
-	int *blank;
 
-	if (evdata && evdata->data && event == FB_EVENT_BLANK) {
-		blank = evdata->data;
-		switch (*blank) {
-			case FB_BLANK_UNBLANK:
-					//display on
-					if (!stats.booted) {
-						/*
-						 * let's start messing with the cores only after
-						 * the device has booted up
-						 */
-						queue_delayed_work_on(0, wq, &decide_hotplug, 0);
-						stats.booted = true;
-					} else
-						queue_work_on(0, wq, &resume);
-				break;
-			case FB_BLANK_POWERDOWN:
-			case FB_BLANK_HSYNC_SUSPEND:
-			case FB_BLANK_VSYNC_SUSPEND:
-			case FB_BLANK_NORMAL:
-					//display off
-						queue_work_on(0, wq, &suspend);
-				break;
-		}
-	}
+	if (event == LCD_EVENT_ON_START) {
+		if (!stats.booted) {
+			/*
+			 * let's start messing with the cores only after
+			 * the device has booted up
+			 */
+			queue_delayed_work_on(0, wq, &decide_hotplug, 0);
+			stats.booted = true;
+		} else
+			queue_work_on(0, wq, &resume);
+	} else if (event == LCD_EVENT_OFF_START)
+		queue_work_on(0, wq, &suspend);
 
-	return 0;
+	return NOTIFY_OK;
 }
 
 /*
@@ -545,7 +530,7 @@ static struct miscdevice mako_hotplug_control_device = {
  * Sysfs get/set entries end
  */
 
-static int mako_hotplug_probe(struct platform_device *pdev)
+static int __devinit mako_hotplug_probe(struct platform_device *pdev)
 {
 	int ret = 0;
 	struct hotplug_tunables *t = &tunables;
@@ -566,7 +551,12 @@ static int mako_hotplug_probe(struct platform_device *pdev)
 	t->timer = DEFAULT_TIMER;
 	t->min_cores_online = DEFAULT_MIN_CORES_ONLINE;
 
-	stats.notif.notifier_call = fb_notifier_callback;
+	stats.notif.notifier_call = lcd_notifier_callback;
+
+	if (lcd_register_client(&stats.notif)) {
+		ret = -EINVAL;
+		goto err;
+	}
 
 	ret = misc_register(&mako_hotplug_control_device);
 	if (ret) {
