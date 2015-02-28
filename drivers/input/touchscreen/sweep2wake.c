@@ -29,11 +29,8 @@
 #include <linux/slab.h>
 #include <linux/workqueue.h>
 #include <linux/input.h>
-#ifdef CONFIG_POWERSUSPEND
-#include <linux/powersuspend.h>
-#else
-#include <linux/lcd_notify.h>
-#endif
+#include <linux/fb.h>
+#include <linux/notifier.h>
 #include <linux/hrtimer.h>
 
 /* uncomment since no touchscreen defines android touch, do that here */
@@ -101,9 +98,7 @@ static bool touch_x_called = false, touch_y_called = false;
 static bool scr_suspended = false, exec_count = true;
 static bool scr_on_touch = false, barrier[2] = {false, false};
 static bool r_barrier[2] = {false, false};
-#ifndef CONFIG_POWERSUSPEND
-static struct notifier_block s2w_lcd_notif;
-#endif
+static struct notifier_block s2w_fb_notif;
 static struct input_dev * sweep2wake_pwrdev;
 static DEFINE_MUTEX(pwrkeyworklock);
 static struct workqueue_struct *s2w_input_wq;
@@ -333,37 +328,33 @@ static struct input_handler s2w_input_handler = {
 	.id_table	= s2w_ids,
 };
 
-#ifdef CONFIG_POWERSUSPEND
-static void s2w_power_suspend(struct power_suspend *h) {
-	scr_suspended = true;
-}
-
-static void s2w_power_resume(struct power_suspend *h) {
-	scr_suspended = false;
-}
-
-static struct power_suspend s2w_power_suspend_handler = {
-	.suspend = s2w_power_suspend,
-	.resume = s2w_power_resume,
-};
-#else
-static int lcd_notifier_callback(struct notifier_block *this,
-								unsigned long event, void *data)
+static int fb_notifier_callback(struct notifier_block *self,
+				unsigned long event, void *data)
 {
-	switch (event) {
-	case LCD_EVENT_ON_END:
-		scr_suspended = false;
-		break;
-	case LCD_EVENT_OFF_END:
-		scr_suspended = true;
-		break;
-	default:
-		break;
+	struct fb_event *evdata = data;
+	int *blank;
+
+	if (evdata && evdata->data && event == FB_EVENT_BLANK) {
+		blank = evdata->data;
+		switch (*blank) {
+			case FB_BLANK_UNBLANK:
+				//display on
+				scr_suspended = false;
+				break;
+			case FB_BLANK_POWERDOWN:
+			case FB_BLANK_HSYNC_SUSPEND:
+			case FB_BLANK_VSYNC_SUSPEND:
+			case FB_BLANK_NORMAL:
+				//display off
+				scr_suspended = true;
+				break;
+			default:
+				break;
+		}
 	}
 
 	return 0;
 }
-#endif
 
 /*
  * SYSFS stuff below here
@@ -514,14 +505,7 @@ static int __init sweep2wake_init(void)
 	if (rc)
 		pr_err("%s: Failed to register s2w_input_handler\n", __func__);
 
-#ifdef CONFIG_POWERSUSPEND
-	register_power_suspend(&s2w_power_suspend_handler);
-#else
-	s2w_lcd_notif.notifier_call = lcd_notifier_callback;
-	if (lcd_register_client(&s2w_lcd_notif) != 0) {
-		pr_err("%s: Failed to register lcd callback\n", __func__);
-	}
-#endif
+	s2w_fb_notif.notifier_call = fb_notifier_callback;
 
 #ifndef ANDROID_TOUCH_DECLARED
 	android_touch_kobj = kobject_create_and_add("android_touch", NULL) ;
@@ -563,9 +547,7 @@ static void __exit sweep2wake_exit(void)
 #ifndef ANDROID_TOUCH_DECLARED
 	kobject_del(android_touch_kobj);
 #endif
-#ifndef CONFIG_POWERSUSPEND
-	lcd_unregister_client(&s2w_lcd_notif);
-#endif
+	s2w_fb_notif.notifier_call = NULL;
 	input_unregister_handler(&s2w_input_handler);
 	destroy_workqueue(s2w_input_wq);
 	input_unregister_device(sweep2wake_pwrdev);
