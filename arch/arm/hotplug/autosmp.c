@@ -26,7 +26,8 @@
 #include <linux/cpu.h>
 #include <linux/cpumask.h>
 #include <linux/hrtimer.h>
-#include <linux/lcd_notify.h>
+#include <linux/fb.h>
+#include <linux/notifier.h>
 
 #define DEBUG 0
 
@@ -39,7 +40,7 @@ struct asmp_cpudata_t {
 
 static struct delayed_work asmp_work;
 static DEFINE_PER_CPU(struct asmp_cpudata_t, asmp_cpudata);
-struct notifier_block notify;
+struct notifier_block notif;
 static struct work_struct suspend, resume;
 
 static struct asmp_param_struct {
@@ -190,24 +191,32 @@ static int __cpuinit set_enabled(const char *val, const struct kernel_param *kp)
 	return ret;
 }
 
-static int __ref lcd_notifier_callback(struct notifier_block *this,
+static int __ref fb_notifier_callback(struct notifier_block *self,
 				unsigned long event, void *data)
 {
-	switch (event) {
- 	case LCD_EVENT_ON_END:
- 	case LCD_EVENT_OFF_START:
- 		break;
-	case LCD_EVENT_ON_START:
-	queue_work_on(0, system_wq, &resume);
-		break;
-	case LCD_EVENT_OFF_END:
-	queue_work_on(0, system_wq, &suspend);
-		break;
-	default:
-		break;
+	struct fb_event *evdata = data;
+	int *blank;
+
+	if (evdata && evdata->data && event == FB_EVENT_BLANK) {
+		blank = evdata->data;
+		switch (*blank) {
+			case FB_BLANK_UNBLANK:
+				//display on
+				queue_work_on(0, system_wq, &resume);
+				break;
+			case FB_BLANK_POWERDOWN:
+			case FB_BLANK_HSYNC_SUSPEND:
+			case FB_BLANK_VSYNC_SUSPEND:
+			case FB_BLANK_NORMAL:
+				//display off
+				queue_work_on(0, system_wq, &suspend);
+				break;
+			default:
+				break;
+		}
 	}
 
-	return NOTIFY_OK;
+	return 0;
 }
 
 static struct kernel_param_ops module_ops = {
@@ -316,10 +325,8 @@ static int __init asmp_init(void) {
 	for_each_possible_cpu(cpu)
 		per_cpu(asmp_cpudata, cpu).times_hotplugged = 0;
 
-	notify.notifier_call = lcd_notifier_callback;
-	if (lcd_register_client(&notify) != 0)
-		pr_warn(ASMP_TAG"lcd client register error\n");
-
+	notif.notifier_call = fb_notifier_callback;
+	
 	INIT_WORK(&resume, asmp_lcd_resume);
 	INIT_WORK(&suspend, asmp_lcd_suspend);
 	INIT_DELAYED_WORK(&asmp_work, asmp_work_fn);
