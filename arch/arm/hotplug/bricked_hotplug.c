@@ -315,7 +315,6 @@ static int fb_notifier_callback(struct notifier_block *self,
 	return 0;
 }
 
-
 static int bricked_hotplug_start(void)
 {
 	int ret = 0;
