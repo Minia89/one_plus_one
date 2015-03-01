@@ -49,9 +49,11 @@ struct cpu_stats {
 	unsigned int counter;
 	struct notifier_block notif;
 	u64 timestamp;
+	bool booted;
 } stats = {
 	.counter = 0,
 	.timestamp = 0,
+	.booted = false,
 };
 
 struct hotplug_tunables {
@@ -283,6 +285,14 @@ static int fb_notifier_callback(struct notifier_block *self,
 		switch (*blank) {
 			case FB_BLANK_UNBLANK:
 				//display on
+				if (!stats.booted) {
+					/*
+					 * let's start messing with the cores only after
+					 * the device has booted up
+					 */
+				queue_delayed_work_on(0, wq, &decide_hotplug, 0);
+				stats.booted = true;
+		} else
 			queue_work_on(0, wq, &resume);
 				break;
 			case FB_BLANK_POWERDOWN:
@@ -293,8 +303,8 @@ static int fb_notifier_callback(struct notifier_block *self,
 				queue_work_on(0, wq, &suspend);
 				break;
 		}
+		return 0;
 	}
-	return 0;
 }
 
 /*
@@ -583,8 +593,16 @@ static struct platform_device mako_hotplug_device = {
 	.id = -1,
 };
 
+static int mako_hotplug_remove(struct platform_device *pdev)
+{
+	destroy_workqueue(wq);
+
+	return 0;
+}
+
 static struct platform_driver mako_hotplug_driver = {
 	.probe = mako_hotplug_probe,
+	.remove = mako_hotplug_remove,
 	.driver = {
 		.name = MAKO_HOTPLUG,
 		.owner = THIS_MODULE,
