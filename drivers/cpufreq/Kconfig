@@ -58,6 +58,17 @@ config CPU_FREQ_DEFAULT_GOV_PERFORMANCE
 	  the frequency statically to the highest frequency supported by
 	  the CPU.
 
+config CPU_FREQ_DEFAULT_GOV_ELEMENTALX
+bool "elementalx"
+select CPU_FREQ_GOV_ELEMENTALX
+select CPU_FREQ_GOV_PERFORMANCE
+help
+Use the CPUFreq governor 'elementalx' as default.
+
+config CPU_FREQ_DEFAULT_GOV_BLU_ACTIVE
+bool "blu_active"
+select CPU_FREQ_GOV_BLU_ACTIVE
+
 config CPU_FREQ_DEFAULT_GOV_POWERSAVE
 	bool "powersave"
 	depends on EXPERT
@@ -121,6 +132,14 @@ config CPU_FREQ_GOV_PERFORMANCE
 	  module will be called cpufreq_performance.
 
 	  If in doubt, say Y.
+
+
+config CPU_FREQ_GOV_ELEMENTALX
+tristate "'elementalx' cpufreq policy governor"
+select CPU_FREQ_TABLE
+
+config CPU_FREQ_GOV_BLU_ACTIVE
+tristate "'blu_active' cpufreq policy governor"
 
 config CPU_FREQ_GOV_POWERSAVE
 	tristate "'powersave' governor"
