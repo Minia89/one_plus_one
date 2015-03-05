@@ -23,7 +23,7 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/fb.h>
-#include "acpuclock.h"
+#include <../mach-msm/acpuclock.h>
 
 
 struct hotplug_cpuinfo {
