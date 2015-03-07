@@ -69,6 +69,12 @@ config CPU_FREQ_DEFAULT_GOV_BLU_ACTIVE
 bool "blu_active"
 select CPU_FREQ_GOV_BLU_ACTIVE
 
+config CPU_FREQ_DEFAULT_GOV_SMARTMAX
+	bool "smartmax"
+	select CPU_FREQ_GOV_SMARTMAX
+	help
+	  Use the CPUFreq governor 'optimax' as default
+
 config CPU_FREQ_DEFAULT_GOV_POWERSAVE
 	bool "powersave"
 	depends on EXPERT
@@ -140,6 +146,10 @@ select CPU_FREQ_TABLE
 
 config CPU_FREQ_GOV_BLU_ACTIVE
 tristate "'blu_active' cpufreq policy governor"
+
+config CPU_FREQ_GOV_SMARTMAX
+	tristate "'smartmax' cpufreq policy governor"
+	select CPU_FREQ_TABLE
 
 config CPU_FREQ_GOV_POWERSAVE
 	tristate "'powersave' governor"
