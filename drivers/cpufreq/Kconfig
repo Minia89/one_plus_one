@@ -157,7 +157,7 @@ config CPU_FREQ_GOV_SMARTMAX
 	tristate "'smartmax' cpufreq policy governor"
 	select CPU_FREQ_TABLE
 
-config CPU_FREQ_DEFAULT_GOV_IMPULSE
+config CPU_FREQ_GOV_IMPULSE
 	tristate "'impulse' cpufreq policy governor"
 
 config CPU_FREQ_GOV_POWERSAVE
