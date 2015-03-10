@@ -43,12 +43,12 @@
 #define INIT_UDELAY		200
 #define MAX_UDELAY		2000
 
+/* Number of jiffies for a full thermal cycle */
+#define TH_HZ			20
+
 #ifdef CONFIG_CPU_FREQ_GOV_ELEMENTALX
 int graphics_boost = 6;
 #endif
-
-/* Number of jiffies for a full thermal cycle */
-#define TH_HZ			20
 
 struct clk_pair {
 	const char *name;
@@ -157,7 +157,6 @@ void kgsl_pwrctrl_buslevel_update(struct kgsl_device *device,
 	}
 	msm_bus_scale_client_update_request(pwr->pcl, buslevel);
 	trace_kgsl_pwrlevel(device, pwr->active_pwrlevel, buslevel);
-
 }
 EXPORT_SYMBOL(kgsl_pwrctrl_buslevel_update);
 
@@ -231,9 +230,8 @@ void kgsl_pwrctrl_pwrlevel_change(struct kgsl_device *device,
 			pwrlevel->gpu_freq);
 
 #ifdef CONFIG_CPU_FREQ_GOV_ELEMENTALX
-        graphics_boost = pwr->active_pwrlevel;
+graphics_boost = pwr->active_pwrlevel;
 #endif
-
 }
 EXPORT_SYMBOL(kgsl_pwrctrl_pwrlevel_change);
 
@@ -1159,7 +1157,7 @@ int kgsl_pwrctrl_init(struct kgsl_device *device)
 	pwr->thermal_pwrlevel = 0;
 
 	pwr->active_pwrlevel = pdata->init_level;
-	pwr->default_pwrlevel = pdata->min_level;
+	pwr->default_pwrlevel = pwr->min_pwrlevel;
 	pwr->init_pwrlevel = pdata->init_level;
 	pwr->wakeup_maxpwrlevel = 0;
 	for (i = 0; i < pdata->num_levels; i++) {
@@ -1752,3 +1750,4 @@ int kgsl_active_count_wait(struct kgsl_device *device, int count)
 	return result;
 }
 EXPORT_SYMBOL(kgsl_active_count_wait);
+
