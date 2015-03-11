@@ -334,13 +334,11 @@ static void __ref hotplug_work_fn(struct work_struct *work)
 static void __alucard_hotplug_suspend(void)
 {
 	if (hotplug_tuners_ins.hotplug_enable > 0
-				&& hotplug_tuners_ins.hotplug_suspend == 1) &&
-	        		hotplug_tuners_ins.suspended == false) {
+				&& hotplug_tuners_ins.hotplug_suspend == 1)
 			mutex_lock(&hotplug_tuners_ins.alu_hotplug_mutex);
 			hotplug_tuners_ins.suspended = true;
 			mutex_unlock(&hotplug_tuners_ins.alu_hotplug_mutex);
 			pr_info("Alucard HotPlug suspended.\n");
-	}
 	stop_rq_work();
 }
 
