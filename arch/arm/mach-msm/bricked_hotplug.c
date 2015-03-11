@@ -29,7 +29,7 @@
 
 #define MPDEC_TAG			"bricked_hotplug"
 #define HOTPLUG_ENABLED			0
-#define MSM_MPDEC_STARTDELAY		20000
+#define MSM_MPDEC_STARTDELAY		10000
 #define MSM_MPDEC_DELAY			130
 #define DEFAULT_MIN_CPUS_ONLINE		1
 #define DEFAULT_MAX_CPUS_ONLINE		NR_CPUS
@@ -37,7 +37,7 @@
 #define DEFAULT_SUSPEND_DEFER_TIME	10
 #define DEFAULT_DOWN_LOCK_DUR		500
 
-#define MSM_MPDEC_IDLE_FREQ		1497600
+#define MSM_MPDEC_IDLE_FREQ		652800
 
 enum {
 	MSM_MPDEC_DISABLED = 0,
@@ -253,7 +253,7 @@ static void bricked_hotplug_suspend(struct work_struct *work)
 {
 	int cpu;
 
-	if (!hotplug.bricked_enabled)
+	if (!hotplug.bricked_enabled || hotplug.suspended)
 		return;
 
 	if (!hotplug.hotplug_suspend)
@@ -326,6 +326,8 @@ static void __ref bricked_hotplug_resume(struct work_struct *work)
 	}
 }
 
+static int prev_fb = FB_BLANK_UNBLANK;
+
 static int fb_notifier_callback(struct notifier_block *self,
 				unsigned long event, void *data)
 {
@@ -339,19 +341,22 @@ static int fb_notifier_callback(struct notifier_block *self,
 		blank = evdata->data;
 		switch (*blank) {
 			case FB_BLANK_UNBLANK:
+				if (prev_fb == FB_BLANK_POWERDOWN) {
 				/* display on */
 				flush_workqueue(susp_wq);
 				cancel_delayed_work_sync(&suspend_work);
 				queue_work_on(0, susp_wq, &resume_work);
+				prev_fb = FB_BLANK_UNBLANK;
+				}
 				break;
 			case FB_BLANK_POWERDOWN:
-			case FB_BLANK_HSYNC_SUSPEND:
-			case FB_BLANK_VSYNC_SUSPEND:
-			case FB_BLANK_NORMAL:
+			        if (prev_fb == FB_BLANK_UNBLANK) {
 				/* display off */
 				INIT_DELAYED_WORK(&suspend_work, bricked_hotplug_suspend);
 				mod_delayed_work_on(0, susp_wq, &suspend_work,
 					msecs_to_jiffies(hotplug.suspend_defer_time * 1000)); 
+				prev_fb = FB_BLANK_POWERDOWN;
+				}
 				break;
 		}
 	}
