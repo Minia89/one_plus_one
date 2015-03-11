@@ -1262,8 +1262,7 @@ DUMP bit but that is okay
 		trace_adreno_cmdbatch_recovery(cmdbatch, BIT(KGSL_FT_SKIPIB));
 		set_bit(KGSL_FT_SKIPIB, &cmdbatch->fault_recovery);
 
-		for (i = 0; i < count; i++) {#
-
+		for (i = 0; i < count; i++) {
 			if (replay[i] != NULL &&
 				replay[i]->context->id == cmdbatch->context->id)
 				cmdbatch_skip_ib(replay[i], base);
