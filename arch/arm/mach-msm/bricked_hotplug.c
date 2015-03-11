@@ -25,6 +25,7 @@
 #include <linux/device.h>
 #include <linux/fb.h>
 
+
 #define DEBUG 0
 
 #define MPDEC_TAG			"bricked_hotplug"
