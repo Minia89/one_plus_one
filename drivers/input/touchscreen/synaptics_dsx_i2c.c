@@ -4842,11 +4842,11 @@ static int synaptics_rmi4_suspend(struct device *dev)
 		synaptics_rmi4_i2c_write(syna_rmi4_data, SYNA_ADDR_GLOVE_FLAG,
 				&val, sizeof(val));
 
-	atomic_set(&rmi4_data->syna_use_gesture,
-			atomic_read(&rmi4_data->double_tap_enable, 1) ||
-			atomic_read(&rmi4_data->camera_enable) ||
-			atomic_read(&rmi4_data->music_enable) ||
-			atomic_read(&rmi4_data->flashlight_enable) ? 1 : 0);
+	atomic_set(&rmi4_data->syna_use_gesture, 0);
+			atomic_set(&rmi4_data->double_tap_enable, 1);
+			atomic_set(&rmi4_data->camera_enable, 0);
+			atomic_set(&rmi4_data->music_enable, 0);
+			atomic_set(&rmi4_data->flashlight_enable, 0);
 
 	if (atomic_read(&rmi4_data->syna_use_gesture) || rmi4_data->pdoze_enable) {
 		synaptics_enable_gesture(rmi4_data,true);
