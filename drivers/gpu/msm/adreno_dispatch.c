@@ -1089,6 +1089,8 @@ static int dispatcher_do_fault(struct kgsl_device *device)
 		/* Skip the PM dump for a timeout because it confuses people */
 		set_bit(KGSL_FT_SKIP_PMDUMP, &cmdbatch->fault_policy);
 	}
+	/* Set pagefault if it occurred */
+	kgsl_mmu_set_pagefault(&device->mmu);
 
 	adreno_readreg(adreno_dev, ADRENO_REG_CP_IB1_BASE, &base);
 
@@ -1212,7 +1214,8 @@ static int dispatcher_do_fault(struct kgsl_device *device)
 
 	/*
 	 * A timeout fault means the IB timed out - clear the policy and
-	 * invalidate - this will clear the FT_SKIP_PMDUMP bit but that is okay
+	 * invalidate - this will clear the FT_SKIP_PM#
+DUMP bit but that is okay
 	 * because we won't see this cmdbatch again
 	 */
 
@@ -1259,7 +1262,8 @@ static int dispatcher_do_fault(struct kgsl_device *device)
 		trace_adreno_cmdbatch_recovery(cmdbatch, BIT(KGSL_FT_SKIPIB));
 		set_bit(KGSL_FT_SKIPIB, &cmdbatch->fault_recovery);
 
-		for (i = 0; i < count; i++) {
+		for (i = 0; i < count; i++) {#
+
 			if (replay[i] != NULL &&
 				replay[i]->context->id == cmdbatch->context->id)
 				cmdbatch_skip_ib(replay[i], base);
@@ -1380,6 +1384,7 @@ replay:
 	kfree(replay);
 	/* restore halt indicator */
 	atomic_add(halt, &adreno_dev->halt);
+#
 
 	return 1;
 }
