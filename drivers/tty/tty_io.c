@@ -1714,11 +1714,9 @@ int tty_release(struct inode *inode, struct file *filp)
 		if (!do_sleep)
 			break;
 
-		if (once) {
-			once = 0;
 			printk(KERN_WARNING "%s: %s: read/write wait queue active!\n",
 				__func__, tty_name(tty, buf));
-		}
+		
 		tty_unlock();
 		mutex_unlock(&tty_mutex);
 		schedule_timeout_killable(timeout);
