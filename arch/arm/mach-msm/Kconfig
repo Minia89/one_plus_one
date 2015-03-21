@@ -3058,7 +3058,7 @@ config BRICKED_HOTPLUG
 
 config ALUCARD_HOTPLUG
 	bool "Enable alucard-hotplug cpu hotplug driver"
-	default y
+	default n
 	help
 	  Generic Alucard-hotplug cpu hotplug driver for ARM SOCs
 
@@ -3069,6 +3069,12 @@ config ASMP
 	help
 	  Automatically hotplugs the multiple cpu cores on and off
 	  based on cpu load and suspend state
+
+config MSM_SLEEPER
+	bool "CPU hotplug driver"
+	default n
+	help
+	  CPU hotplug driver
 
 config HAS_MACH_MEMUTILS
 	default n
