@@ -30,15 +30,15 @@
 
 #define MPDEC_TAG			"bricked_hotplug"
 #define HOTPLUG_ENABLED			1
-#define MSM_MPDEC_STARTDELAY		10000
+#define MSM_MPDEC_STARTDELAY		20000
 #define MSM_MPDEC_DELAY			130
-#define DEFAULT_MIN_CPUS_ONLINE		1
+#define DEFAULT_MIN_CPUS_ONLINE		2
 #define DEFAULT_MAX_CPUS_ONLINE		NR_CPUS
-#define DEFAULT_MAX_CPUS_ONLINE_SUSP	1
+#define DEFAULT_MAX_CPUS_ONLINE_SUSP	2
 #define DEFAULT_SUSPEND_DEFER_TIME	10
 #define DEFAULT_DOWN_LOCK_DUR		500
 
-#define MSM_MPDEC_IDLE_FREQ		652800
+#define MSM_MPDEC_IDLE_FREQ		422400
 
 enum {
 	MSM_MPDEC_DISABLED = 0,
@@ -86,7 +86,7 @@ static struct cpu_hotplug {
 	.hotplug_suspend = 1,
 };
 
-static unsigned int NwNs_Threshold[8] = {12, 0, 25, 7, 30, 10, 0, 18};
+static unsigned int NwNs_Threshold[8] = {12, 0, 20, 7, 25, 10, 0, 18};
 static unsigned int TwTs_Threshold[8] = {140, 0, 140, 190, 140, 190, 0, 190};
 
 struct down_lock {
@@ -202,7 +202,10 @@ static int mp_decision(void) {
 	last_time = ktime_to_ms(ktime_get());
 #if DEBUG
 	pr_info(MPDEC_TAG"[DEBUG] rq: %u, new_state: %i | Mask=[%d%d%d%d]\n",
-			rq_depth, new_state, cpu_online(0), cpu_online(1), cpu_online(2), cpu_online(3));
+	pr_info(MPDEC_TAG"[DEBUG MASK] rq: %u, new_state: %i | Mask=[%d%d%d%d]",
+			rq_depth, new_state, cpu_online(0), cpu_online(1), 				cpu_online(2), cpu_online(3));
+	pr_info(MPDEC_TAG"[DEBUG RATE] CPU0 rate: %lu | CPU1 rate: %lu | CPU2 				rate: %lu | CPU3 rate: %lu",
+			get_rate(0), get_rate(1), get_rate(2), get_rate(3));
 #endif
 	return new_state;
 }
