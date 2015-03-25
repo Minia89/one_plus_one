@@ -129,7 +129,7 @@ static int init_rq_avg(void)
 	}
 	spin_lock_init(&rq_data->lock);
 	rq_data->update_rate = RQ_AVG_TIMER_RATE;
-	INIT_DEFERRABLE_WORK(&rq_data->work, rq_work_fn);
+	INIT_DELAYED_WORK_DEFERRABLE(&rq_data->work, rq_work_fn);
 
 	return 0;
 }
@@ -439,7 +439,7 @@ static int hotplug_start(void)
 
 	start_rq_work();
 
-	INIT_DEFERRABLE_WORK(&alucard_hotplug_work, hotplug_work_fn);
+	INIT_DELAYED_WORK_DEFERRABLE(&alucard_hotplug_work, hotplug_work_fn);
 	mod_delayed_work_on(0, system_wq,
 				&alucard_hotplug_work,
 				msecs_to_jiffies(
