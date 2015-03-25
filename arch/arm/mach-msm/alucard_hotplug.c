@@ -22,9 +22,13 @@
 #include <linux/mutex.h>
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <linux/fb.h>
-#include <../mach-msm/acpuclock.h>
+#include "acpuclock.h"
 
+#ifdef CONFIG_POWERSUSPEND
+#include <linux/powersuspend.h>
+#else
+#include <linux/fb.h>
+#endif
 
 struct hotplug_cpuinfo {
 #ifndef CONFIG_ALUCARD_HOTPLUG_USE_CPU_UTIL
@@ -45,7 +49,9 @@ struct hotplug_cpuinfo {
 
 static DEFINE_PER_CPU(struct hotplug_cpuinfo, od_hotplug_cpuinfo);
 
+#ifndef CONFIG_POWERSUSPEND
 static struct notifier_block notif;
+#endif
 static struct delayed_work alucard_hotplug_work;
 
 static struct hotplug_tuners {
@@ -61,7 +67,11 @@ static struct hotplug_tuners {
 	struct mutex alu_hotplug_mutex;
 } hotplug_tuners_ins = {
 	.hotplug_sampling_rate = 30,
+#ifdef CONFIG_MACH_JF
+	.hotplug_enable = 1,
+#else
 	.hotplug_enable = 0,
+#endif
 	.min_cpus_online = 1,
 	.maxcoreslimit = NR_CPUS,
 	.maxcoreslimit_sleep = 1,
@@ -110,7 +120,7 @@ static void stop_rq_work(void)
 	return;
 }
 
-static int __init init_rq_avg(void)
+static int init_rq_avg(void)
 {
 	rq_data = kzalloc(sizeof(struct runqueue_data), GFP_KERNEL);
 	if (rq_data == NULL) {
@@ -119,7 +129,7 @@ static int __init init_rq_avg(void)
 	}
 	spin_lock_init(&rq_data->lock);
 	rq_data->update_rate = RQ_AVG_TIMER_RATE;
-	INIT_DELAYED_WORK_DEFERRABLE(&rq_data->work, rq_work_fn);
+	INIT_DEFERRABLE_WORK(&rq_data->work, rq_work_fn);
 
 	return 0;
 }
@@ -197,7 +207,7 @@ static void __ref hotplug_work_fn(struct work_struct *work)
 		upmaxcoreslimit = hotplug_tuners_ins.maxcoreslimit;
 
 	cpumask_copy(cpus, cpu_online_mask);
-	online_cpus = num_online_cpus();
+	online_cpus = cpumask_weight(cpus);
 
 	for_each_cpu(cpu, cpus) {
 		struct hotplug_cpuinfo *pcpu_info =
@@ -330,20 +340,27 @@ static void __ref hotplug_work_fn(struct work_struct *work)
 				hotplug_tuners_ins.hotplug_sampling_rate));
 }
 
-
+#ifdef CONFIG_POWERSUSPEND
+static void __alucard_hotplug_suspend(struct power_suspend *handler)
+#else
 static void __alucard_hotplug_suspend(void)
+#endif
 {
 	if (hotplug_tuners_ins.hotplug_enable > 0
-				&& hotplug_tuners_ins.hotplug_suspend == 1)
+				&& hotplug_tuners_ins.hotplug_suspend == 1 &&
+				hotplug_tuners_ins.suspended == false) {
 			mutex_lock(&hotplug_tuners_ins.alu_hotplug_mutex);
 			hotplug_tuners_ins.suspended = true;
 			mutex_unlock(&hotplug_tuners_ins.alu_hotplug_mutex);
-			pr_info("Alucard HotPlug suspended.\n");
+	}
 	stop_rq_work();
 }
 
-
+#ifdef CONFIG_POWERSUSPEND
+static void __ref __alucard_hotplug_resume(struct power_suspend *handler)
+#else
 static void __ref __alucard_hotplug_resume(void)
+#endif
 {
 	if (hotplug_tuners_ins.hotplug_enable > 0
 		&& hotplug_tuners_ins.hotplug_suspend == 1) {
@@ -352,11 +369,16 @@ static void __ref __alucard_hotplug_resume(void)
 			/* wake up everyone */
 			hotplug_tuners_ins.force_cpu_up = true;
 			mutex_unlock(&hotplug_tuners_ins.alu_hotplug_mutex);
-			pr_info("Alucard HotPlug Resumed.\n");
 	}
 	start_rq_work();
 }
 
+#ifdef CONFIG_POWERSUSPEND
+static struct power_suspend alucard_hotplug_power_suspend_driver = {
+	.suspend = __alucard_hotplug_suspend,
+	.resume = __alucard_hotplug_resume,
+};
+#else
 static int prev_fb = FB_BLANK_UNBLANK;
 
 static int fb_notifier_callback(struct notifier_block *self,
@@ -387,6 +409,7 @@ static int fb_notifier_callback(struct notifier_block *self,
 
 	return NOTIFY_OK;
 }
+#endif
 
 static int hotplug_start(void)
 {
@@ -416,16 +439,20 @@ static int hotplug_start(void)
 
 	start_rq_work();
 
-	INIT_DELAYED_WORK_DEFERRABLE(&alucard_hotplug_work, hotplug_work_fn);
+	INIT_DEFERRABLE_WORK(&alucard_hotplug_work, hotplug_work_fn);
 	mod_delayed_work_on(0, system_wq,
 				&alucard_hotplug_work,
 				msecs_to_jiffies(
 				hotplug_tuners_ins.hotplug_sampling_rate));
 
 	mutex_init(&hotplug_tuners_ins.alu_hotplug_mutex);
+#ifdef CONFIG_POWERSUSPEND
+	register_power_suspend(&alucard_hotplug_power_suspend_driver);
+#else
 	notif.notifier_call = fb_notifier_callback;
 	if (fb_register_client(&notif))
 		pr_err("Failed to register FB notifier callback for Alucard Hotplug\n");
+#endif
 
 	return 0;
 }
@@ -434,8 +461,12 @@ static void hotplug_stop(void)
 {
 	mutex_destroy(&hotplug_tuners_ins.alu_hotplug_mutex);
 	cancel_delayed_work_sync(&alucard_hotplug_work);
+#ifdef CONFIG_POWERSUSPEND
+	unregister_power_suspend(&alucard_hotplug_power_suspend_driver);
+#else
 	fb_unregister_client(&notif);
 	notif.notifier_call = NULL;
+#endif
 	stop_rq_work();
 	exit_rq_avg();
 }
