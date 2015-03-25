@@ -13,7 +13,7 @@
  * GNU General Public License for more details.
  *
  */
-#ifdef __ASM_ARCH_MEMORY_H
+#ifndef __ASM_ARCH_MEMORY_H
 #define __ASM_ARCH_MEMORY_H
 #include <linux/types.h>
 
