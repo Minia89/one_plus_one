@@ -30,10 +30,11 @@
 
 #define MAKO_HOTPLUG "mako_hotplug"
 
+#define DEFAULT_HOTPLUG_ENABLED 0
 #define DEFAULT_LOAD_THRESHOLD 80
 #define DEFAULT_HIGH_LOAD_COUNTER 10
 #define DEFAULT_MAX_LOAD_COUNTER 20
-#define DEFAULT_CPUFREQ_UNPLUG_LIMIT 1800000
+#define DEFAULT_CPUFREQ_UNPLUG_LIMIT 1728000
 #define DEFAULT_MIN_TIME_CPU_ONLINE 1
 #define DEFAULT_TIMER 1
 
@@ -44,12 +45,19 @@
 struct cpu_stats {
 	unsigned int counter;
 	u64 timestamp;
+	bool booted;
 } stats = {
 	.counter = 0,
 	.timestamp = 0,
+	.booted = false,
 };
 
 struct hotplug_tunables {
+	/**
+	* whether make_hotplug is enabled or not
+	*/
+ 	unsigned int enabled;
+
 	/*
 	 * system load threshold to decide when online or offline cores
 	 * from 0 to 100
@@ -88,6 +96,16 @@ struct hotplug_tunables {
 	 * per second it runs
 	 */
 	unsigned int timer;
+
+	/**
+	* the maximum frequency when screen is turned off.
+	*/
+	unsigned int screen_off_max;
+
+ 	/**
+	* the minimum cores which should be online.
+	*/
+ 	unsigned int min_cores_online;
 } tunables;
 
 static struct workqueue_struct *wq;
