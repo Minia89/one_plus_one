@@ -649,7 +649,7 @@ static int cpufreq_governor_alucard(struct cpufreq_policy *policy,
 		if (delay <= 0)
 			delay = usecs_to_jiffies(MIN_SAMPLING_RATE);
 
-		INIT_DEFERRABLE_WORK(&this_alucard_cpuinfo->work, do_alucard_timer);
+		INIT_DELAYED_WORK_DEFERRABLE(&this_alucard_cpuinfo->work, do_alucard_timer);
 
 		mod_delayed_work_on(this_alucard_cpuinfo->cpu, system_wq, &this_alucard_cpuinfo->work, delay);
 
