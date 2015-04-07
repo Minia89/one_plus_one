@@ -36,7 +36,9 @@
 #define MAX_CORES_SCREENOFF (2)
 #define MAX_FREQ_SCREENOFF (1036800)
 #define MAX_FREQ_PLUG (2457600)
+#define ENABLED (0)
 
+static int enabled;
 static unsigned int up_threshold = UP_THRESHOLD;;
 static unsigned int delay = DELAY;
 static unsigned int min_online = MIN_ONLINE;
@@ -160,6 +162,27 @@ static __ref void load_timer(struct work_struct *work)
 	queue_delayed_work_on(0, dyn_workq, &dyn_work, delay);
 }
 
+static void enable(void)
+{
+if (enabled)
+return;
+schedule_delayed_work_on(0, work, delay);
+register_early_suspend(suspend);
+enabled = 1;
+}
+static void disable(void)
+{
+if (enabled)
+return;
+cancel_delayed_work(work);
+flush_scheduled_work();
+unregister_early_suspend(suspend);
+
+/* Driver is disabled bring online all CPUs unconditionally */
+up_all(false);
+hp_data->enabled = 0;
+}
+
 /* 
  * Manages driver behavior on screenoff mode
  * It sets max online CPUs to max_cores_screenoff and freq to max_freq_screenoff
@@ -234,6 +257,25 @@ static int fb_notifier_callback(struct notifier_block *self, unsigned long event
 }
 
 /******************** Module parameters *********************/
+
+/* enabled */
+static __cpuinit int set_enabled(const char *val, const struct kernel_param *kp)
+{
+int ret = 0;
+ret = param_set_bool(val, kp);
+if (!enabled)
+disable();
+else
+enable();
+pr_info("%s: enabled = %d\n", __func__, enabled);
+return ret;
+}
+static struct kernel_param_ops enabled_ops = {
+.set = set_enabled,
+.get = param_get_bool,
+};
+module_param_cb(enabled, &enabled_ops, &enabled, 0644);
+MODULE_PARM_DESC(enabled, "control blu_plug");
 
 /* up_threshold */
 static int set_up_threshold(const char *val, const struct kernel_param *kp)
