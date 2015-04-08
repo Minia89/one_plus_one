@@ -65,6 +65,11 @@ select CPU_FREQ_GOV_PERFORMANCE
 help
 Use the CPUFreq governor 'elementalx' as default.
 
+config CPU_FREQ_DEFAULT_GOV_BACON
+	bool "bacon"
+	select CPU_FREQ_GOV_BACON
+	help
+
 config CPU_FREQ_DEFAULT_GOV_SMARTMAX
 	bool "smartmax"
 	select CPU_FREQ_GOV_SMARTMAX
@@ -176,6 +181,10 @@ config CPU_FREQ_GOV_PERFORMANCE
 config CPU_FREQ_GOV_ELEMENTALX
 tristate "'elementalx' cpufreq policy governor"
 select CPU_FREQ_TABLE
+
+config CPU_FREQ_GOV_BACON
+	tristate "'bacon' cpufreq policy governor"
+	help
 
 config CPU_FREQ_GOV_SMARTMAX
 	tristate "'smartmax' cpufreq policy governor"
