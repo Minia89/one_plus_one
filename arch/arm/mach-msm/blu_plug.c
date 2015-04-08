@@ -166,18 +166,21 @@ static void enable(void)
 {
 if (enabled)
 return;
+schedule_delayed_work_on(0, work, delay);
+register_early_suspend(suspend);
 enabled = 1;
 }
 static void disable(void)
 {
 if (enabled)
 return;
+cancel_delayed_work(work);
 flush_scheduled_work();
-
-
+unregister_early_suspend(suspend);
 
 /* Driver is disabled bring online all CPUs unconditionally */
-enabled = 0;
+up_all(false);
+hp_data->enabled = 0;
 }
 
 /* 
