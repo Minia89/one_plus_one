@@ -108,11 +108,6 @@ config CPU_FREQ_DEFAULT_GOV_IMPULSE
 	help
 	  Use the CPUFreq governor 'impulse' as default.
 
-config CPU_FREQ_DEFAULT_GOV_RAGINGMOLASSES
-	bool "ragingmolasses"
-	select CPU_FREQ_GOV_RAGINMOLASSES
-	help
-
 config CPU_FREQ_DEFAULT_GOV_POWERSAVE
 	bool "powersave"
 	depends on EXPERT
@@ -210,10 +205,6 @@ config CPU_FREQ_GOV_ZZMOOVE
 	 
 config CPU_FREQ_GOV_IMPULSE
 	tristate "'impulse' cpufreq policy governor"
-
-config CPU_FREQ_GOV_RAGINGMOLASSES
-	tristate "'RAGINGMOLASSES' cpufreq policy governor"
-	help
 
 config CPU_FREQ_GOV_POWERSAVE
 	tristate "'powersave' governor"
