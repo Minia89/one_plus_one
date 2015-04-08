@@ -65,10 +65,6 @@ select CPU_FREQ_GOV_PERFORMANCE
 help
 Use the CPUFreq governor 'elementalx' as default.
 
-config CPU_FREQ_DEFAULT_GOV_BLU_ACTIVE
-bool "blu_active"
-select CPU_FREQ_GOV_BLU_ACTIVE
-
 config CPU_FREQ_DEFAULT_GOV_SMARTMAX
 	bool "smartmax"
 	select CPU_FREQ_GOV_SMARTMAX
@@ -180,9 +176,6 @@ config CPU_FREQ_GOV_PERFORMANCE
 config CPU_FREQ_GOV_ELEMENTALX
 tristate "'elementalx' cpufreq policy governor"
 select CPU_FREQ_TABLE
-
-config CPU_FREQ_GOV_BLU_ACTIVE
-tristate "'blu_active' cpufreq policy governor"
 
 config CPU_FREQ_GOV_SMARTMAX
 	tristate "'smartmax' cpufreq policy governor"
