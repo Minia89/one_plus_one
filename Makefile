@@ -245,8 +245,8 @@ CONFIG_SHELL := $(shell if [ -x "$$BASH" ]; then echo $$BASH; \
 
 HOSTCC = gcc
 HOSTCXX = g++
-HOSTCFLAGS = -Wall -Wmissing-prototypes -Wstrict-prototypes -O3 -fomit-frame-pointer -fgcse-las -fgraphite -fgraphite-identity -pipe -DNDEBUG 
-HOSTCXXFLAGS = -O3 -fgcse-las -fgraphite -fgraphite-identity -pipe -DNDEBUG 
+HOSTCFLAGS = -Wall -Wmissing-prototypes -Wstrict-prototypes -O3 -fomit-frame-pointer -fgcse-las -fgraphite -fgraphite-identity -pipe -DNDEBUG -pthread -fstrict-aliasing -fuse-linker-plugin -flto=4
+HOSTCXXFLAGS = -O3 -fgcse-las -fgraphite -fgraphite-identity -pipe -DNDEBUG -pthread -fstrict-aliasing -fuse-linker-plugin -flto=4
 
 # Decide whether to build built-in, modular, or both.
 # Normally, just do built-in.
