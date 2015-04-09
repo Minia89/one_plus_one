@@ -558,15 +558,10 @@ static int hidg_bind(struct usb_configuration *c, struct usb_function *f)
 
 	hidg->set_report_buff = NULL;
 
-	hidg_hs_in_ep_desc.bEndpointAddress =
-		hidg_fs_in_ep_desc.bEndpointAddress;
-	hidg_hs_out_ep_desc.bEndpointAddress =
-		hidg_fs_out_ep_desc.bEndpointAddress;
-
-	status = usb_assign_descriptors(f, hidg_fs_descriptors,
-			hidg_hs_descriptors, NULL);
-	if (status)
-		goto fail;
+status = usb_assign_descriptors(f, hidg_fs_descriptors,
+ hidg_hs_descriptors, NULL);
+ if (status)
+ goto fail;
 
 	mutex_init(&hidg->lock);
 	spin_lock_init(&hidg->spinlock);
@@ -594,6 +589,7 @@ fail:
 	}
 
 	usb_free_all_descriptors(f);
+
 	return status;
 }
 
@@ -619,7 +615,9 @@ static void hidg_unbind(struct usb_configuration *c, struct usb_function *f)
 	kfree(hidg->req->buf);
 	usb_ep_free_request(hidg->in_ep, hidg->req);
 
-	usb_free_all_descriptors(f);
+
+ usb_free_all_descriptors(f);
+	
 
 	kfree(hidg->report_desc);
 	kfree(hidg->set_report_buff);
