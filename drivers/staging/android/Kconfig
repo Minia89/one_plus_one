@@ -21,6 +21,18 @@ config ASHMEM
 	  POSIX SHM but with different behavior and sporting a simpler
 	  file-based API.
 
+config ANDROID_LOGGER
+	tristate "Android log driver"
+	default n
+
+config LOGCAT_SIZE
+	int "Adjust android log buffer sizes"
+	default 256
+	depends on ANDROID_LOGGER
+	help
+	  Set logger buffer size. Enter a number greater than zero.
+	  Any value less than 256 is recommended. Reduce value to save kernel static memory size.
+
 config ANDROID_PERSISTENT_RAM
 	bool
 	depends on HAVE_MEMBLOCK
@@ -80,6 +92,15 @@ config ANDROID_BG_SCAN_MEM
 	  Add more free-memory check point. Such as, when a task is moved to
 	  background task groups, we can trigger low memory killer to scan
 	  memory and decide whether it needs to reclaim memory by killing tasks.
+
+config ANDROID_INTF_ALARM_DEV
+	bool "Android alarm driver"
+	depends on RTC_CLASS
+	default n
+	help
+	  Provides non-wakeup and rtc backed wakeup alarms based on rtc or
+	  elapsed realtime, and a non-wakeup alarm on the monotonic clock.
+	  Also exports the alarm interface to user-space.
 
 endif # if ANDROID
 
